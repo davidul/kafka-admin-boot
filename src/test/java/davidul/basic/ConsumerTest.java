@@ -26,8 +26,8 @@ public class ConsumerTest {
         final Gson gson = new Gson();
         final Producer producer = new Producer(kafka.getBootstrapServers());
         final ReactorProducer reactorProducer = new ReactorProducer();
-        final List<ReactorProducer.Event> events = reactorProducer.getEvents(1000);
-        final var map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
+        final List<ReactorProducer.Event> events = reactorProducer.getEvents(1);
+        final List<ProducerRecord<String, String>> map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
         producer.produce(map);
         /*reactorProducer.produceEvents(keyValue -> {
             producer.produce(first_topic.name(), keyValue.getT1().toString(), keyValue.getT2());

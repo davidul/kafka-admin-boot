@@ -1,0 +1,61 @@
+version: "3"
+services:
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper
+    networks:
+      kafka-net:
+        ipv4_address: 172.18.101.2
+
+  kafka:
+    container_name: kafka
+    build:
+      context: ./kafka
+      dockerfile: Dockerfile
+    networks:
+      kafka-net:
+        ipv4_address: 172.18.101.3
+    depends_on:
+      - zookeeper
+
+  kafka1:
+    container_name: kafka1
+    build:
+      context: ./kafka
+      dockerfile: Dockerfile
+    networks:
+      kafka-net:
+        ipv4_address: 172.18.101.4
+    depends_on:
+      - zookeeper
+
+  kafka2:
+    container_name: kafka2
+    build:
+      context: ./kafka
+      dockerfile: Dockerfile
+    networks:
+      kafka-net:
+        ipv4_address: 172.18.101.5
+    depends_on:
+      - zookeeper
+
+  verticle:
+    container_name: verticle
+    build:
+      context: ./sample-producer
+      dockerfile: Dockerfile
+    networks:
+      kafka-net:
+        ipv4_address: 172.18.101.6
+    depends_on:
+      - kafka
+      - kafka1
+      - kafka2
+
+networks:
+  kafka-net:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.101.0/16"

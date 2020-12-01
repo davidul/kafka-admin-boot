@@ -10,6 +10,8 @@ import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.util.Collections;
+
 public class StreamSampleTest {
     @ClassRule
     public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest"));
@@ -19,13 +21,13 @@ public class StreamSampleTest {
         final AdminClient adminClient = KafkaContainerSetup.setup(kafka);
         final NewTopic first_topic = new NewTopic("first_topic", 1, (short) 1);
         final NewTopic second_topic = new NewTopic("second_topic", 1, (short) 1);
-        adminClient.createTopics(java.util.List.of(first_topic, second_topic));
+        adminClient.createTopics(List.of(first_topic, second_topic).asJava());
 
         final Gson gson = new Gson();
         final Producer producer = new Producer(kafka.getBootstrapServers());
         final ReactorProducer reactorProducer = new ReactorProducer();
         final List<ReactorProducer.Event> events = reactorProducer.getEvents(10).appendAll(reactorProducer.getEvents(10));
-        final var map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
+        final List<ProducerRecord<String, String>> map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
         producer.produce(map);
 
         //final StreamSample streamSample = new StreamSample();

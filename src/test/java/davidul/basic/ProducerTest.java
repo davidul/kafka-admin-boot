@@ -29,8 +29,9 @@ public class ProducerTest {
         final Producer producer = new Producer(bootstrapServers);
         final ReactorProducer reactorProducer = new ReactorProducer();
         final List<ReactorProducer.Event> events = reactorProducer.getEvents(10);
-        final var map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
+        final List<ProducerRecord<String, String>> map = events.map(f -> new ProducerRecord<>(first_topic.name(), f.getKey(), gson.toJson(f)));
         producer.produce(map);
     }
+
 
 }
