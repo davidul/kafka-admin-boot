@@ -10,11 +10,15 @@ import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuples;
 
+/**
+ *
+ * @author ulicny.david@gmail.com
+ */
 public class SampleProducer extends AbstractVerticle {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SampleProducer.class);
 
-    private KafkaProducer<String, String> kafkaProducer;
+    private final KafkaProducer<String, String> kafkaProducer;
 
     private final Faker faker;
 

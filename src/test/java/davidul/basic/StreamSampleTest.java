@@ -10,8 +10,6 @@ import org.junit.Test;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import java.util.Collections;
-
 public class StreamSampleTest {
     @ClassRule
     public static KafkaContainer kafka = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:latest"));
