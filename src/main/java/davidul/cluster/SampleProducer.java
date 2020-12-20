@@ -24,8 +24,10 @@ public class SampleProducer extends AbstractVerticle {
 
     @Override
     public void start() throws Exception {
-        Flux.range(1, 10).map(i ->
-            Tuples.of(i.toString(), new TrekMessage(faker.starTrek().location(), faker.starTrek().specie(), faker.starTrek().character()).toString())
+        Flux
+                .range(1, 10)
+                .map(i ->
+                    Tuples.of(i.toString(), new TrekMessage(faker.starTrek().location(), faker.starTrek().specie(), faker.starTrek().character()).toString())
         ).subscribe(t -> produce(t.getT1(), t.getT2()));
 
     }
