@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
@@ -28,16 +29,24 @@ public class TopicController {
         this.topicService = topicService;
     }
 
-    @GetMapping(value = "/topics", produces = "application/json")
-    public ResponseEntity<Set<String>> getTopics() {
-        final Set<String> strings = this.topicService.listTopics();
+    @GetMapping(value = "/topics", params = {"internal"}, produces = "application/json")
+    public ResponseEntity<Set<String>> getTopics(@RequestParam("internal") String internal) {
+        Boolean listInternal = Boolean.FALSE;
+        if(internal != null){
+            listInternal = Boolean.valueOf(internal);
+        }
+        final Set<String> strings = this.topicService.listTopics(listInternal);
         return ResponseEntity.ok(strings);
     }
 
     @GetMapping(value = "/topics/describe", produces = "application/json")
-    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics() {
+    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam("internal") String internal) {
+        Boolean isInternal = Boolean.FALSE;
+        if(internal != null){
+            isInternal = Boolean.parseBoolean(internal);
+        }
         List<TopicPartitionsDTO> topicList = new ArrayList<>();
-        final Map<String, TopicDescription> topicsAll = topicService.describeTopicsAll();
+        final Map<String, TopicDescription> topicsAll = topicService.describeTopicsAll(isInternal);
         final Iterator<String> iterator = topicsAll.keySet().iterator();
         while (iterator.hasNext()) {
             final String next = iterator.next();

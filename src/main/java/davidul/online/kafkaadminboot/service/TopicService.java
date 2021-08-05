@@ -15,6 +15,7 @@ import org.apache.kafka.clients.admin.DescribeLogDirsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
 import org.apache.kafka.clients.admin.ListTopicsResult;
 import org.apache.kafka.clients.admin.NewPartitions;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -47,8 +48,10 @@ public class TopicService {
         this.connectionService = connectionService;
     }
 
-    public Set<String> listTopics(){
-        final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics();
+    public Set<String> listTopics(Boolean listInternal){
+        final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
+        listTopicsOptions.listInternal(listInternal);
+        final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
         try {
             return listTopicsResult.names().get();
         } catch (InterruptedException | ExecutionException e) {
@@ -57,9 +60,9 @@ public class TopicService {
         return null;
     }
 
-    public Map<String, TopicDescription> describeTopicsAll(){
+    public Map<String, TopicDescription> describeTopicsAll(Boolean internal){
         try {
-            return connectionService.adminClient().describeTopics(listTopics()).all().get();
+            return connectionService.adminClient().describeTopics(listTopics(internal)).all().get();
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
