@@ -1,10 +1,12 @@
 package davidul.online.kafkaadminboot.controller;
 
 import davidul.online.kafkaadminboot.model.ConsumerGroupDescriptionDTO;
+import davidul.online.kafkaadminboot.model.LogDirInfoDTO;
 import davidul.online.kafkaadminboot.model.MemberDescriptionDTO;
 import davidul.online.kafkaadminboot.model.NodeDTO;
 import davidul.online.kafkaadminboot.model.OffsetAndMetadataDTO;
 import davidul.online.kafkaadminboot.model.PartitionInfoDTO;
+import davidul.online.kafkaadminboot.model.ReplicaInfoDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionDTO;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.MemberDescription;
@@ -12,9 +14,12 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.TopicPartitionInfo;
+import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -63,5 +68,25 @@ public class Topics {
 
     public static NodeDTO node(Node node){
         return new NodeDTO(node.id(), node.host(), node.port(), node.rack());
+    }
+
+    public static LogDirInfoDTO logDirInfo(DescribeLogDirsResponse.LogDirInfo logDirInfo){
+        return new LogDirInfoDTO(logDirInfo.error.name(), replicaInfos(logDirInfo.replicaInfos));
+    }
+
+    public static ReplicaInfoDTO replicaInfo(DescribeLogDirsResponse.ReplicaInfo replicaInfo){
+        return new ReplicaInfoDTO(replicaInfo.size, replicaInfo.offsetLag, replicaInfo.isFuture);
+    }
+
+    public static Map<TopicPartitionDTO, ReplicaInfoDTO> replicaInfos(Map<TopicPartition, DescribeLogDirsResponse.ReplicaInfo> map){
+        Map<TopicPartitionDTO, ReplicaInfoDTO> infoDTOMap = new HashMap<>();
+        for (TopicPartition topicPartition : map.keySet()) {
+            final DescribeLogDirsResponse.ReplicaInfo replicaInfo = map.get(topicPartition);
+            final TopicPartitionDTO topicPartitionDTO = topicPartition(topicPartition);
+            final ReplicaInfoDTO replicaInfoDTO = replicaInfo(replicaInfo);
+            infoDTOMap.put(topicPartitionDTO, replicaInfoDTO);
+        }
+
+        return infoDTOMap;
     }
 }

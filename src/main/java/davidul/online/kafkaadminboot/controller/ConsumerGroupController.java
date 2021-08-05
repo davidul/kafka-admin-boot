@@ -1,5 +1,6 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.model.ConsumerGroupDescriptionDTO;
 import davidul.online.kafkaadminboot.model.ConsumerGroupListingDTO;
 import davidul.online.kafkaadminboot.model.ConsumerGroupOffsetDTO;
 import davidul.online.kafkaadminboot.model.OffsetAndMetadataDTO;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -39,5 +41,12 @@ public class ConsumerGroupController {
         }
 
         return ResponseEntity.ok(offsetDTOS);
+    }
+
+    @GetMapping(value = "/consumergroup/{groupId}/describe")
+    public ResponseEntity<Map<String, ConsumerGroupDescriptionDTO>> describerConsumerGroup(@PathVariable("groupId") String groupId){
+        final Map<String, ConsumerGroupDescriptionDTO> consumerGroupDescriptionDTOMap = this.topicService.describerConsumerGroups(Collections.singleton(groupId));
+        return ResponseEntity.ok(consumerGroupDescriptionDTOMap);
+
     }
 }

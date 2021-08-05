@@ -1,11 +1,17 @@
 package davidul.online.kafkaadminboot.service;
 
 import davidul.online.kafkaadminboot.controller.Topics;
+import davidul.online.kafkaadminboot.model.ClusterDTO;
+import davidul.online.kafkaadminboot.model.ConsumerGroupDescriptionDTO;
 import davidul.online.kafkaadminboot.model.ConsumerGroupListingDTO;
+import davidul.online.kafkaadminboot.model.LogDirInfoDTO;
+import davidul.online.kafkaadminboot.model.NodeDTO;
 import davidul.online.kafkaadminboot.model.OffsetAndMetadataDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionDTO;
 import org.apache.kafka.clients.admin.ConsumerGroupDescription;
 import org.apache.kafka.clients.admin.ConsumerGroupListing;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
+import org.apache.kafka.clients.admin.DescribeLogDirsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
@@ -17,7 +23,9 @@ import org.apache.kafka.clients.admin.RecordsToDelete;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -149,12 +157,74 @@ public class TopicService {
 
     }
 
-    public void describerConsumerGroups(Collection<String> groupIds){
+    public Map<String, ConsumerGroupDescriptionDTO> describerConsumerGroups(Collection<String> groupIds){
+        Map<String, ConsumerGroupDescriptionDTO> consumerGroupDescriptionDTOMap = new HashMap<>();
         final KafkaFuture<Map<String, ConsumerGroupDescription>> all = connectionService.adminClient().describeConsumerGroups(groupIds).all();
         try {
-            final Map<String, ConsumerGroupDescription> stringConsumerGroupDescriptionMap = all.get();
+            final Map<String, ConsumerGroupDescription> map = all.get();
+            for (String s : map.keySet()) {
+                final ConsumerGroupDescription consumerGroupDescription = map.get(s);
+                final ConsumerGroupDescriptionDTO consumerGroupDescriptionDTO = Topics.consumerGroupDescription(consumerGroupDescription);
+                consumerGroupDescriptionDTOMap.put(s, consumerGroupDescriptionDTO);
+            }
+
         } catch (InterruptedException | ExecutionException e) {
             e.printStackTrace();
         }
+
+        return consumerGroupDescriptionDTOMap;
+    }
+
+    public Map<Integer, Map<String, LogDirInfoDTO>> describeLogDirs(Collection<Integer> brokers){
+        Map<Integer, Map<String, LogDirInfoDTO>> brokerMap = new HashMap<>();
+
+        final DescribeLogDirsResult describeLogDirsResult = connectionService.adminClient().describeLogDirs(brokers);
+        try {
+            final Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> integerMapMap = describeLogDirsResult.all().get();
+            for (Integer integer : integerMapMap.keySet()) {
+                final Map<String, DescribeLogDirsResponse.LogDirInfo> stringLogDirInfoMap = integerMapMap.get(integer);
+                Map<String, LogDirInfoDTO> dirInfoDTOMap = new HashMap<>();
+                for (String s : stringLogDirInfoMap.keySet()) {
+                    final DescribeLogDirsResponse.LogDirInfo logDirInfo = stringLogDirInfoMap.get(s);
+                    final LogDirInfoDTO logDirInfoDTO = Topics.logDirInfo(logDirInfo);
+                    dirInfoDTOMap.put(s, logDirInfoDTO);
+                }
+                brokerMap.put(integer, dirInfoDTOMap);
+
+            }
+
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        return brokerMap;
+
+    }
+
+    public ClusterDTO describeCluster(){
+        List<NodeDTO> nodeDTOList = new ArrayList<>();
+        final DescribeClusterResult describeClusterResult = connectionService.adminClient().describeCluster();
+        try {
+            for (Node node : describeClusterResult.nodes().get()) {
+                nodeDTOList.add(Topics.node(node));
+            }
+
+            final String s = describeClusterResult.clusterId().get();
+
+            final Node node = describeClusterResult.controller().get();
+            final NodeDTO controller = Topics.node(node);
+            return new ClusterDTO(s, nodeDTOList, controller);
+        } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    public void describeConfigs(){
+
+    }
+
+    public void x(Collection<Integer> brokers){
     }
 }
