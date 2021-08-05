@@ -1,5 +1,6 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.model.ClusterDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionsDTO;
 import davidul.online.kafkaadminboot.model.OffsetDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
@@ -118,4 +119,9 @@ public class TopicController {
         return ResponseEntity.ok(offsetDTOS);
     }
 
+    @GetMapping(value = "/cluster")
+    public ResponseEntity<ClusterDTO> getCluster(){
+        final ClusterDTO clusterDTO = this.topicService.describeCluster();
+        return ResponseEntity.ok(clusterDTO);
+    }
 }
