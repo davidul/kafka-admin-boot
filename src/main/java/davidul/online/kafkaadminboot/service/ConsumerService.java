@@ -17,7 +17,7 @@ public class ConsumerService {
 
     public static Properties consumerProperties(String bootstrap, String group){
         Properties properties = new Properties();
-        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrap);
         properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, group);
@@ -26,9 +26,9 @@ public class ConsumerService {
         return properties;
     }
 
-    public ConsumerRecords<String, String> read(String topic){
-        final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProperties("", "group-1"));
-        TopicPartition topicPartition = new TopicPartition(topic, 0);
+    public ConsumerRecords<String, String> read(String topic, Integer partition){
+        final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProperties("localhost:9092", "group-1"));
+        TopicPartition topicPartition = new TopicPartition(topic, partition);
         Set<TopicPartition> topicPartitions = new HashSet<>();
         topicPartitions.add(topicPartition);
         consumer.assign(topicPartitions);

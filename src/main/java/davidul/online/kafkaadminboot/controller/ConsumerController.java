@@ -25,7 +25,7 @@ public class ConsumerController {
     @GetMapping(value = "/consumer/{topic}", produces = "application/json")
     public ResponseEntity<List<MessageDTO>> consumer(@PathVariable("topic") String topic){
         List<MessageDTO> messageDTOList = new ArrayList<>();
-        final ConsumerRecords<String, String> read = this.consumerService.read(topic);
+        final ConsumerRecords<String, String> read = this.consumerService.read(topic, 0);
 
         for (ConsumerRecord<String, String> record : read.records(topic)) {
             final MessageDTO messageDTO = new MessageDTO(record.value(), record.key());
