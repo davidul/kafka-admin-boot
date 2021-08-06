@@ -1,5 +1,6 @@
 package davidul.online.kafkaadminboot.service;
 
+import davidul.online.kafkaadminboot.model.RecordMetadataDTO;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -23,9 +24,9 @@ public class ProducerService {
 
     public void produce(String topic, String message){
         KafkaProducer<String, String> kafkaProducer = new KafkaProducer<String, String>(producerProperties(""));
-        final ProducerRecord<String, String> objectStringProducerRecord = new ProducerRecord<>(topic, message);
-        kafkaProducer.send(objectStringProducerRecord, (metadata, exception) -> {
-            System.out.println("Offset " + metadata.offset());
+        final ProducerRecord<String, String> producerRecord = new ProducerRecord<>(topic, message);
+        kafkaProducer.send(producerRecord, (metadata, exception) -> {
+            new RecordMetadataDTO(metadata.offset(), metadata.timestamp(), metadata.serializedKeySize(), metadata.serializedValueSize(), null);
         });
     }
 
