@@ -59,7 +59,7 @@ public class TopicController {
         return ResponseEntity.ok(topicList);
     }
 
-    @GetMapping(value = "/topic/describe/{name}")
+    @GetMapping(value = "/topic/describe/{name}", produces = "application/json")
     public ResponseEntity<TopicPartitionsDTO> describeTopic(@PathVariable("name") String name) {
         final TopicDescription topicDescription = this.topicService.describeTopic(name);
         final TopicPartitionsDTO topicPartitionsDTO = new TopicPartitionsDTO(topicDescription.name(), Topics.partitions(topicDescription.partitions()));
@@ -91,33 +91,9 @@ public class TopicController {
         return ResponseEntity.accepted().build();
     }
 
-    @GetMapping(value = "/topic/{name}/partition/{partition}/offset/{position}")
-    public ResponseEntity<OffsetDTO> offset(@PathVariable("name") String topicName,
-                                            @PathVariable("partition") String partition,
-                                            @PathVariable("position") String position) {
 
-        if (position.equalsIgnoreCase("earliest")) {
-            final ListOffsetsResult.ListOffsetsResultInfo info = this.topicService.offset(topicName,
-                    Integer.parseInt(partition),
-                    OffsetSpec.earliest());
 
-            final OffsetDTO earliest = new OffsetDTO("earliest", info.offset());
-            return ResponseEntity.ok(earliest);
-        } else if (position.equalsIgnoreCase("latest")) {
-            this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
-        }
 
-        return ResponseEntity.accepted().build();
-    }
-
-    @GetMapping(value = "/topic/{name}/partition/{partition}/offset")
-    public ResponseEntity<List<OffsetDTO>> offsets(@PathVariable("name") String topicName,
-                                                   @PathVariable("partition") String partition){
-        final ListOffsetsResult.ListOffsetsResultInfo earliestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.earliest());
-        final ListOffsetsResult.ListOffsetsResultInfo latestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
-        final List<OffsetDTO> offsetDTOS = List.of(new OffsetDTO("earliest", earliestOffset.offset()), new OffsetDTO("latest", latestOffset.offset()));
-        return ResponseEntity.ok(offsetDTOS);
-    }
 
     @GetMapping(value = "/cluster")
     public ResponseEntity<ClusterDTO> getCluster(){
