@@ -7,7 +7,6 @@ import org.apache.kafka.clients.admin.TopicDescription;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.test.context.TestPropertySource;
 
 import java.util.Map;
 import java.util.Set;

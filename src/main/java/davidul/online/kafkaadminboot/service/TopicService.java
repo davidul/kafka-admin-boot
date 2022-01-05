@@ -8,6 +8,8 @@ import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -17,6 +19,8 @@ import java.util.concurrent.ExecutionException;
 public class TopicService {
 
     private final ConnectionService connectionService;
+
+    private static Logger logger = LoggerFactory.getLogger(TopicService.class);
 
     public TopicService(ConnectionService connectionService) {
         this.connectionService = connectionService;
@@ -29,6 +33,7 @@ public class TopicService {
      * @return {@link Set} topic names
      */
     public Set<String> listTopics(Boolean listInternal){
+        logger.debug("Listing topics");
         final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
         listTopicsOptions.listInternal(listInternal);
         final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
