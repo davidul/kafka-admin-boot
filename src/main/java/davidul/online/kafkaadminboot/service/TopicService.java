@@ -1,43 +1,16 @@
 package davidul.online.kafkaadminboot.service;
 
 import davidul.online.kafkaadminboot.controller.Topics;
-import davidul.online.kafkaadminboot.model.ClusterDTO;
-import davidul.online.kafkaadminboot.model.ConsumerGroupDescriptionDTO;
-import davidul.online.kafkaadminboot.model.ConsumerGroupListingDTO;
-import davidul.online.kafkaadminboot.model.LogDirInfoDTO;
-import davidul.online.kafkaadminboot.model.NodeDTO;
-import davidul.online.kafkaadminboot.model.OffsetAndMetadataDTO;
-import davidul.online.kafkaadminboot.model.TopicPartitionDTO;
-import org.apache.kafka.clients.admin.ConsumerGroupDescription;
-import org.apache.kafka.clients.admin.ConsumerGroupListing;
-import org.apache.kafka.clients.admin.DescribeClusterResult;
-import org.apache.kafka.clients.admin.DescribeLogDirsResult;
-import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
-import org.apache.kafka.clients.admin.ListConsumerGroupsResult;
-import org.apache.kafka.clients.admin.ListOffsetsResult;
-import org.apache.kafka.clients.admin.ListTopicsOptions;
-import org.apache.kafka.clients.admin.ListTopicsResult;
-import org.apache.kafka.clients.admin.NewPartitions;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.admin.OffsetSpec;
-import org.apache.kafka.clients.admin.RecordsToDelete;
-import org.apache.kafka.clients.admin.TopicDescription;
+import davidul.online.kafkaadminboot.model.*;
+import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.internals.Fetcher;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 @Service
@@ -49,6 +22,12 @@ public class TopicService {
         this.connectionService = connectionService;
     }
 
+    /**
+     * Returns {@link Set} of topic names.
+     *
+     * @param listInternal internal topics included
+     * @return {@link Set} topic names
+     */
     public Set<String> listTopics(Boolean listInternal){
         final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
         listTopicsOptions.listInternal(listInternal);
@@ -70,6 +49,11 @@ public class TopicService {
         return null;
     }
 
+    /**
+     * Describe topic.
+     * @param name
+     * @return
+     */
     public TopicDescription describeTopic(String name){
         try {
             final Map<String, TopicDescription> topic = connectionService.adminClient().describeTopics(Collections.singletonList(name)).all().get();
