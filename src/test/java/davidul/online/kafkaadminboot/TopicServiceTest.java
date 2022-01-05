@@ -92,4 +92,20 @@ public class TopicServiceTest {
         Map<String, TopicDescription> stringTopicDescriptionMap = topicService.describeTopicsAll(false);
         assertThat(stringTopicDescriptionMap).isNotNull();
     }
+
+    @Test
+    public void delete_test(){
+        final ConnectionService connectionService = new ConnectionService();
+        final TopicService topicService = new TopicService(connectionService);
+
+        topicService.createTopic("delete-topic");
+        TopicDescription topicDescription = topicService.describeTopic("delete-topic");
+        assertThat(topicDescription).isNotNull();
+        assertThat(topicDescription.name()).isEqualTo("delete-topic");
+
+        topicService.deleteTopic("delete-topic");
+
+        TopicDescription topicDescription1 = topicService.describeTopic("delete-topic");
+        assertThat(topicDescription1).isNull();
+    }
 }
