@@ -2,7 +2,8 @@
 
 #ipaddress=$(eval "route -n | awk '/UG[ \t]/{print $$2}'")
 ipaddress=$(eval "ifconfig eth0 | grep -w 'inet' | tr -s ' ' | cut -d' ' -f3| cut -d':' -f2")
-dockerport=$(docker port ${HOSTNAME} | cut -d"/" -f1)
+#092/tcp -> 0.0.0.0:50830
+dockerport=$(docker port ${HOSTNAME} | cut -d":" -f2)
 
 echo $dockerport
 echo $ZOOKEEPER
@@ -10,7 +11,7 @@ echo $ZOOKEEPER
 cat <<EOF > $KAFKA_HOME/config/server.properties
 broker.id.generation.enable=true
 listeners=PLAINTEXT://$ipaddress:9092
-advertised.listeners=PLAINTEXT://$ipaddress:$dockerport
+advertised.listeners=PLAINTEXT://10.0.1.24:$dockerport
 num.network.threads=3
 num.io.threads=8
 socket.send.buffer.bytes=102400

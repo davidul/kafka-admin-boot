@@ -5,13 +5,8 @@ services:
     image: zookeeper
     ports:
       - "2181:2181"
-    networks:
-      kafka-net:
-        ipv4_address: 172.18.101.2
 
   kafka:
-    container_name: kafka
-    hostname: kafka
     build:
       context: ./kafka
       dockerfile: Dockerfile
@@ -19,30 +14,7 @@ services:
       - "9092"
     environment:
       ZOOKEEPER: zookeeper:2181
-    networks:
-      kafka-net:
-        ipv4_address: 172.18.101.3
     depends_on:
       - zookeeper
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-
-#  verticle:
-#    container_name: verticle
-#    build:
-#      context: ./sample-producer
-#      dockerfile: Dockerfile
-#    networks:
-#      kafka-net:
-#        ipv4_address: 172.18.101.6
-#    depends_on:
-#      - kafka
-#      - kafka1
-#      - kafka2
-
-networks:
-  kafka-net:
-    ipam:
-      driver: default
-      config:
-        - subnet: "172.18.101.0/16"
