@@ -2,24 +2,12 @@ package davidul.online.kafkaadminboot.controller;
 
 import davidul.online.kafkaadminboot.model.ClusterDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionsDTO;
-import davidul.online.kafkaadminboot.model.OffsetDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
-import org.apache.kafka.clients.admin.ListOffsetsResult;
-import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 public class TopicController {
@@ -30,18 +18,21 @@ public class TopicController {
         this.topicService = topicService;
     }
 
-    @GetMapping(value = "/topics", params = {"internal"}, produces = "application/json")
-    public ResponseEntity<Set<String>> getTopics(@RequestParam("internal") String internal) {
+    @GetMapping(value = "/topics", produces = "application/json")
+    public ResponseEntity<Set<String>> getTopics(@RequestParam(value = "internal", required = false) String internal) {
         Boolean listInternal = Boolean.FALSE;
         if(internal != null){
             listInternal = Boolean.valueOf(internal);
         }
         final Set<String> strings = this.topicService.listTopics(listInternal);
+        if(strings.isEmpty()){
+            return ResponseEntity.ok(Set.of("No Topics"));
+        }
         return ResponseEntity.ok(strings);
     }
 
     @GetMapping(value = "/topics/describe", produces = "application/json")
-    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam("internal") String internal) {
+    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false) String internal) {
         Boolean isInternal = Boolean.FALSE;
         if(internal != null){
             isInternal = Boolean.parseBoolean(internal);
@@ -90,9 +81,6 @@ public class TopicController {
         this.topicService.deleteRecords(topicName, Integer.parseInt(partition));
         return ResponseEntity.accepted().build();
     }
-
-
-
 
 
     @GetMapping(value = "/cluster")

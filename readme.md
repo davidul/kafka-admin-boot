@@ -1,31 +1,13 @@
-# Kafka samples
-## Docker
+# Kafka Admin 
+Simple REST based Kafka administration tool. It is not intended
+for production use at the moment.
 
-You can create Kafka cluster with docker-compose. It will
-create zookeeper and kafka container.
-Kafka broker id is random. Should not be in collision.
-
-```
-docker-compose up --build
-```
-If you need to start over
-```
-docker-compose rm
-```
-
-Scaling up with
-```shell
-docker-compose up --scale kafka=3
-```
-will create three kafka brokers
-
-Kafka describe topic
-```
-docker exec -it kafka /opt/kafka/bin/kafka-topics.sh --describe --topic my-topic --zookeeper 172.18.101.2:2181
-```
-
-Zookeeper list broker ids
-```
-docker exec -it zookeeper zkCli.sh ls /brokers/ids
-```
-docker exec docker-kafka-1 less /opt/kafka/config/server.properties
+| Verb   | Endpoint                                | Usage                                                            |
+|--------|-----------------------------------------|------------------------------------------------------------------|
+| GET    | /topics                                 | curl -v http://localhost:8080/topics                             |
+| GET    | /topics/describe                        | curl -v http://localhost:8080/topics/describe                    |
+| GET    | /topic/describe/{name}                  | curl -v http://localhost:8080/topic/describe/my-topic            |
+| POST   | /topic/{name}                           | curl -v -X POST http://localhost:8080/topic/my-topic             |
+| POST   | /topic/{name}/partition/{count}         | curl -v -X POST http://localhost:8080/topic/my-topic/partition/2 |
+| DELETE | /topic/{name}                           |                                                                  |
+| DELETE | /topic/{name}/deleterecords/{partition} |                                                                  |
