@@ -1,7 +1,10 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.exception.InternalException;
 import davidul.online.kafkaadminboot.model.ClusterDTO;
+import davidul.online.kafkaadminboot.model.FutureDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionsDTO;
+import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.springframework.http.ResponseEntity;
@@ -24,11 +27,16 @@ public class TopicController {
         if(internal != null){
             listInternal = Boolean.valueOf(internal);
         }
-        final Set<String> strings = this.topicService.listTopics(listInternal);
-        if(strings.isEmpty()){
+        ListTopicsDTO listTopicsDTO = null;
+        try {
+            listTopicsDTO = this.topicService.listTopics(listInternal);
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+        if(listTopicsDTO.getTimeout()){
             return ResponseEntity.ok(Set.of("No Topics"));
         }
-        return ResponseEntity.ok(strings);
+        return ResponseEntity.ok(listTopicsDTO.getTopicNames());
     }
 
     @GetMapping(value = "/topics/describe", produces = "application/json")
@@ -58,9 +66,10 @@ public class TopicController {
     }
 
     @PostMapping(value = "/topic/{name}")
-    public ResponseEntity<Void> createTopic(@PathVariable("name") String name) {
-        this.topicService.createTopic(name);
-        return ResponseEntity.accepted().build();
+    public ResponseEntity<FutureDTO> createTopic(@PathVariable("name") String name) {
+        String uuid = this.topicService.createTopic(name);
+        return ResponseEntity.accepted().body(new FutureDTO(uuid));
+        //return ResponseEntity.accepted().build();
     }
 
     @PostMapping(value = "/topic/{name}/partition/{count}")

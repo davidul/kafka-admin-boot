@@ -13,8 +13,12 @@ public class ConnectionService {
     private AdminClient adminClient;
 
     public ConnectionService() {
+        String kafka_bootstrap = System.getenv().get("KAFKA_BOOTSTRAP");
+        if(kafka_bootstrap == null){
+            kafka_bootstrap = "127.0.0.1:9092";
+        }
         this.properties = new Properties();
-        this.properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        this.properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka_bootstrap);
     }
 
     public AdminClient adminClient() {

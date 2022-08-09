@@ -21,7 +21,8 @@ class ProducerServiceTest {
     void produce() {
         ConnectionService connectionService = new ConnectionService();
         ProducerService producerService = new ProducerService();
-        TopicService topicService = new TopicService(connectionService);
+        final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
+        TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
         topicService.createTopic("test-topic");
         producerService.produce("test-topic", "message-1");
 

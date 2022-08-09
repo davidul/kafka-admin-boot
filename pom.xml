@@ -5,7 +5,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.5.3</version>
+        <version>2.7.2</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>davidul.online</groupId>
@@ -14,7 +14,7 @@
     <name>kafka-admin-boot</name>
     <description>kafka-admin-boot</description>
     <properties>
-        <java.version>16</java.version>
+        <java.version>17</java.version>
         <junit.jupiter.version>5.8.2</junit.jupiter.version>
         <junit.platform.version>1.8.1</junit.platform.version>
     </properties>
