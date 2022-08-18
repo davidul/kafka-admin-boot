@@ -23,10 +23,14 @@ public class ProducerService {
 
 
     public void produce(String topic, String message){
-        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<String, String>(producerProperties(""));
+        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(producerProperties(""));
         final ProducerRecord<String, String> producerRecord = new ProducerRecord<>(topic, message);
         kafkaProducer.send(producerRecord, (metadata, exception) -> {
-            new RecordMetadataDTO(metadata.offset(), metadata.timestamp(), metadata.serializedKeySize(), metadata.serializedValueSize(), null);
+            new RecordMetadataDTO(metadata.offset(),
+                    metadata.timestamp(),
+                    metadata.serializedKeySize(),
+                    metadata.serializedValueSize(),
+                    null);
         });
     }
 

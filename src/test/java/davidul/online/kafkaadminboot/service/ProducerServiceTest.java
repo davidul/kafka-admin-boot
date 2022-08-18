@@ -1,5 +1,7 @@
 package davidul.online.kafkaadminboot.service;
 
+import davidul.online.kafkaadminboot.exception.InternalException;
+import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -18,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProducerServiceTest {
 
     @Test
-    void produce() {
+    void produce() throws KafkaTimeoutException, InternalException {
         ConnectionService connectionService = new ConnectionService();
         ProducerService producerService = new ProducerService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();

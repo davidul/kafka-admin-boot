@@ -1,6 +1,7 @@
 package davidul.online.kafkaadminboot;
 
 import davidul.online.kafkaadminboot.exception.InternalException;
+import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.service.ConnectionService;
 import davidul.online.kafkaadminboot.service.KafkaResultQueue;
 import davidul.online.kafkaadminboot.service.TopicService;
@@ -15,7 +16,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+@SpringBootTest(properties = {"admin.timeout=1000"})
 @EmbeddedKafka(partitions = 1, brokerProperties = {"listeners=PLAINTEXT://localhost:9092", "port=9092"})
 public class TopicServiceTest {
 
@@ -27,7 +28,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void list_topics() throws InternalException {
+    public void list_topics() throws InternalException, KafkaTimeoutException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -38,7 +39,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void list_topics_empty() throws InternalException {
+    public void list_topics_empty() throws InternalException, KafkaTimeoutException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -48,7 +49,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void list_internal_topics() throws InternalException {
+    public void list_internal_topics() throws InternalException, KafkaTimeoutException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -58,7 +59,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void create_topic() throws InternalException {
+    public void create_topic() throws InternalException, KafkaTimeoutException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -69,7 +70,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void describe_topic(){
+    public void describe_topic() throws KafkaTimeoutException, InternalException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -81,7 +82,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void describe_topic_not_exist(){
+    public void describe_topic_not_exist() throws KafkaTimeoutException, InternalException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -91,7 +92,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void describe_topics_all(){
+    public void describe_topics_all() throws KafkaTimeoutException, InternalException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);
@@ -102,7 +103,7 @@ public class TopicServiceTest {
     }
 
     @Test
-    public void delete_test(){
+    public void delete_test() throws KafkaTimeoutException, InternalException {
         final ConnectionService connectionService = new ConnectionService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         final TopicService topicService = new TopicService(connectionService, kafkaResultQueue);

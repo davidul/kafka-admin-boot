@@ -2,6 +2,7 @@ package davidul.online.kafkaadminboot.service;
 
 import davidul.online.kafkaadminboot.controller.Topics;
 import davidul.online.kafkaadminboot.exception.InternalException;
+import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.model.*;
 import davidul.online.kafkaadminboot.model.internal.KafkaRequest;
 import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
@@ -10,9 +11,12 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,11 +26,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Service
+@PropertySource("classpath:application.properties")
 public class TopicService {
 
     private final ConnectionService connectionService;
 
     private final KafkaResultQueue kafkaResultQueue;
+
+    @Value("${admin.timeout:1000}")
+    private String timeout = "1";
 
     private static final Logger logger = LoggerFactory.getLogger(TopicService.class);
 
@@ -41,13 +49,13 @@ public class TopicService {
      * @param listInternal internal topics included
      * @return {@link Set} topic names
      */
-    public ListTopicsDTO listTopics(Boolean listInternal) throws InternalException {
+    public ListTopicsDTO listTopics(Boolean listInternal) throws InternalException, KafkaTimeoutException {
         logger.debug("Listing topics");
         final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
         listTopicsOptions.listInternal(listInternal);
         final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
         try {
-            Set<String> strings = listTopicsResult.names().get(1, TimeUnit.MILLISECONDS);
+            Set<String> strings = listTopicsResult.names().get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
             return new ListTopicsDTO(strings, Boolean.FALSE, null);
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Exception: ", e);
@@ -57,17 +65,19 @@ public class TopicService {
             listTopicsResult.getClass();
             String key = kafkaResultQueue.add(
                     new KafkaRequest(LocalDateTime.now(), listTopicsResult.names(), "listTopics"));
-            return new ListTopicsDTO(null, Boolean.TRUE, key);
+
+            throw new KafkaTimeoutException(key);
         }
     }
 
-
-
     public Map<String, TopicDescription> describeTopicsAll(Boolean internal) {
         try {
-            return connectionService.adminClient().describeTopics(listTopics(internal).getTopicNames()).all().get();
+            ListTopicsDTO listTopicsDTO = listTopics(internal);
+            return connectionService.adminClient().describeTopics(listTopicsDTO.getTopicNames()).all().get();
         } catch (InterruptedException | ExecutionException | InternalException e) {
             e.printStackTrace();
+        } catch (KafkaTimeoutException e) {
+            throw new RuntimeException(e);
         }
         return null;
     }
@@ -78,24 +88,45 @@ public class TopicService {
      * @param name
      * @return
      */
-    public TopicDescription describeTopic(String name) {
+    public TopicDescription describeTopic(String name) throws InternalException, KafkaTimeoutException {
+        DescribeTopicsResult describeTopicsResult = connectionService
+                .adminClient().describeTopics(Collections.singletonList(name));
+        final Map<String, KafkaFuture<TopicDescription>> topic = describeTopicsResult.topicNameValues();
         try {
-            final Map<String, TopicDescription> topic = connectionService
-                    .adminClient().describeTopics(Collections.singletonList(name)).all().get();
-            return topic.get(name);
+            Set<String> names = topic.keySet();
+            for (String uuid : names) {
+                TopicDescription topicDescription = topic.get(uuid).get(1, TimeUnit.MILLISECONDS);
+                return topicDescription;
+            }
+            return null;
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            throw new InternalException(e);
+        } catch (TimeoutException e) {
+            logger.debug("Timeout exception");
+            String key = kafkaResultQueue.add(
+                    new KafkaRequest(LocalDateTime.now(), topic.get(name), "describeTopic"));
+
+            throw new KafkaTimeoutException(key);
         }
-        return null;
     }
 
-    public String createTopic(String name) {
+    public String createTopic(String name) throws InternalException, KafkaTimeoutException {
         Set<NewTopic> topics = new HashSet<>();
         NewTopic newTopic = new NewTopic(name, 1, (short) 1);
         topics.add(newTopic);
         CreateTopicsResult topics1 = connectionService.adminClient().createTopics(topics);
-        KafkaFuture<Void> all = topics1.all();
-        return kafkaResultQueue.add(new KafkaRequest<>(LocalDateTime.now(), all, "createdBy"));
+        KafkaFuture<Uuid> uuidKafkaFuture = topics1.topicId(name);
+        try {
+            Uuid unused = uuidKafkaFuture.get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
+            return unused.toString();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new InternalException(e);
+        } catch (TimeoutException e) {
+            logger.debug("Timeout exception");
+            String key = kafkaResultQueue.add(
+                    new KafkaRequest(LocalDateTime.now(), uuidKafkaFuture , "createTopic"));
+            throw new KafkaTimeoutException(key);
+        }
     }
 
     public void deleteTopic(String name) {
@@ -109,18 +140,18 @@ public class TopicService {
         connectionService.adminClient().createPartitions(map);
     }
 
-    public void deleteRecords(String topicName, int partition) {
+    public void deleteRecords(String topicName, int partition) throws InternalException {
         final TopicPartition topicPartition = new TopicPartition(topicName, partition);
         final HashMap<TopicPartition, RecordsToDelete> deleteHashMap = new HashMap<>();
         deleteHashMap.put(topicPartition, RecordsToDelete.beforeOffset(Integer.MAX_VALUE));
         try {
             connectionService.adminClient().deleteRecords(deleteHashMap).all().get();
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            throw new InternalException(e);
         }
     }
 
-    public ListOffsetsResult.ListOffsetsResultInfo offset(String topicName, int partition, OffsetSpec offsetSpec) {
+    public ListOffsetsResult.ListOffsetsResultInfo offset(String topicName, int partition, OffsetSpec offsetSpec) throws InternalException {
         final TopicPartition topicPartition = new TopicPartition(topicName, partition);
         Map<TopicPartition, OffsetSpec> specMap = new HashMap<>();
         specMap.put(topicPartition, offsetSpec);
@@ -128,9 +159,8 @@ public class TopicService {
             return
                     connectionService.adminClient().listOffsets(specMap).partitionResult(topicPartition).get();
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            throw new InternalException(e);
         }
-        return null;
     }
 
     public List<ConsumerGroupListingDTO> listConsumerGroups() {

@@ -1,5 +1,6 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.exception.InternalException;
 import davidul.online.kafkaadminboot.model.FullOffsetDTO;
 import davidul.online.kafkaadminboot.model.OffsetDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
@@ -22,8 +23,20 @@ public class OffsetController {
     @GetMapping(value = "/topic/{name}/partition/{partition}/offset")
     public ResponseEntity<FullOffsetDTO> offsets(@PathVariable("name") String topicName,
                                                  @PathVariable("partition") String partition){
-        final ListOffsetsResult.ListOffsetsResultInfo earliestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.earliest());
-        final ListOffsetsResult.ListOffsetsResultInfo latestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
+        final ListOffsetsResult.ListOffsetsResultInfo earliestOffset;
+        try {
+            earliestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.earliest());
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
+
+        final ListOffsetsResult.ListOffsetsResultInfo latestOffset;
+
+        try {
+            latestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
         final FullOffsetDTO fullOffsetDTO = new FullOffsetDTO(earliestOffset.offset(), latestOffset.offset());
         return ResponseEntity.ok(fullOffsetDTO);
     }
@@ -34,14 +47,23 @@ public class OffsetController {
                                             @PathVariable("position") String position) {
 
         if (position.equalsIgnoreCase("earliest")) {
-            final ListOffsetsResult.ListOffsetsResultInfo info = this.topicService.offset(topicName,
-                    Integer.parseInt(partition),
-                    OffsetSpec.earliest());
+            final ListOffsetsResult.ListOffsetsResultInfo info;
+            try {
+                info = this.topicService.offset(topicName,
+                        Integer.parseInt(partition),
+                        OffsetSpec.earliest());
+            } catch (InternalException e) {
+                return ResponseEntity.internalServerError().build();
+            }
 
             final OffsetDTO earliest = new OffsetDTO("earliest", info.offset());
             return ResponseEntity.ok(earliest);
         } else if (position.equalsIgnoreCase("latest")) {
-            this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
+            try {
+                this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.latest());
+            } catch (InternalException e) {
+                return ResponseEntity.internalServerError().build();
+            }
         }
 
         return ResponseEntity.accepted().build();
