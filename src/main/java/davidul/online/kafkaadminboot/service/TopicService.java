@@ -33,8 +33,8 @@ public class TopicService {
 
     private final KafkaResultQueue kafkaResultQueue;
 
-    @Value("${admin.timeout:1000}")
-    private String timeout = "1";
+    @Value("${admin.timeout}")
+    private String timeout;
 
     private static final Logger logger = LoggerFactory.getLogger(TopicService.class);
 
@@ -44,42 +44,25 @@ public class TopicService {
     }
 
     /**
-     * Returns {@link Set} of topic names.
+     * Returns {@link ListTopicsDTO} .
      *
      * @param listInternal internal topics included
-     * @return {@link Set} topic names
+     * @return {@link ListTopicsDTO} topic names
      */
     public ListTopicsDTO listTopics(Boolean listInternal) throws InternalException, KafkaTimeoutException {
         logger.debug("Listing topics");
         final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
         listTopicsOptions.listInternal(listInternal);
         final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
-        try {
-            Set<String> strings = listTopicsResult.names().get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
-            return new ListTopicsDTO(strings, Boolean.FALSE, null);
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Exception: ", e);
-            throw new InternalException(e);
-        } catch (TimeoutException e) {
-            logger.debug("Timeout exception");
-            listTopicsResult.getClass();
-            String key = kafkaResultQueue.add(
-                    new KafkaRequest(LocalDateTime.now(), listTopicsResult.names(), "listTopics"));
-
-            throw new KafkaTimeoutException(key);
-        }
+        KafkaFuture<Set<String>> names = listTopicsResult.names();
+        return  (ListTopicsDTO)handleFuture(names, "listTopics");
     }
 
-    public Map<String, TopicDescription> describeTopicsAll(Boolean internal) {
-        try {
+    public Map<String, TopicDescription> describeTopicsAll(Boolean internal) throws KafkaTimeoutException, InternalException {
             ListTopicsDTO listTopicsDTO = listTopics(internal);
-            return connectionService.adminClient().describeTopics(listTopicsDTO.getTopicNames()).all().get();
-        } catch (InterruptedException | ExecutionException | InternalException e) {
-            e.printStackTrace();
-        } catch (KafkaTimeoutException e) {
-            throw new RuntimeException(e);
-        }
-        return null;
+            KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = connectionService.adminClient()
+                    .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
+        return (Map<String, TopicDescription>) handleFuture(mapKafkaFuture, "describeTopicsAll");
     }
 
     /**
@@ -116,21 +99,15 @@ public class TopicService {
         topics.add(newTopic);
         CreateTopicsResult topics1 = connectionService.adminClient().createTopics(topics);
         KafkaFuture<Uuid> uuidKafkaFuture = topics1.topicId(name);
-        try {
-            Uuid unused = uuidKafkaFuture.get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
-            return unused.toString();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new InternalException(e);
-        } catch (TimeoutException e) {
-            logger.debug("Timeout exception");
-            String key = kafkaResultQueue.add(
-                    new KafkaRequest(LocalDateTime.now(), uuidKafkaFuture , "createTopic"));
-            throw new KafkaTimeoutException(key);
-        }
+        Uuid o = (Uuid)handleFuture(uuidKafkaFuture, "createTopic");
+        return o.toString();
     }
 
-    public void deleteTopic(String name) {
-        connectionService.adminClient().deleteTopics(Collections.singletonList(name)).all();
+    public void deleteTopic(String name) throws KafkaTimeoutException, InternalException {
+        DeleteTopicsResult deleteTopicsResult = connectionService.adminClient()
+                .deleteTopics(Collections.singletonList(name));
+        KafkaFuture<Void> all = deleteTopicsResult.all();
+        handleFuture(all, "deleteTopics");
     }
 
     public void createPartition(String topicName, int numPartitions) {
@@ -271,5 +248,20 @@ public class TopicService {
     }
 
     public void x(Collection<Integer> brokers) {
+    }
+
+    protected Object handleFuture(KafkaFuture kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
+        try {
+            return kafkaFuture.get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            logger.error("Exception: ", e);
+            throw new InternalException(e);
+        } catch (TimeoutException e) {
+            logger.debug("Timeout exception");
+            String key = kafkaResultQueue.add(
+                    new KafkaRequest(LocalDateTime.now(), kafkaFuture, createdBy));
+
+            throw new KafkaTimeoutException(key);
+        }
     }
 }

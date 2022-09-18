@@ -35,7 +35,7 @@ public class KafkaQueueController {
             if(done){
                 try {
                     Object o = voidKafkaFuture.getKafkaFuture().get();
-
+                    this.kafkaResultQueue.remove(uuid);
                     return ResponseEntity.ok(
                             new FutureDescriptionDTO(String.valueOf(done),
                                     String.valueOf(cancelled),

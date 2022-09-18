@@ -27,7 +27,8 @@ public class ConsumerService {
     }
 
     public ConsumerRecords<String, String> read(String topic, Integer partition){
-        final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(consumerProperties("localhost:9092", "group-1"));
+        final KafkaConsumer<String, String> consumer = new KafkaConsumer<>(
+                consumerProperties(System.getenv("KAFKA_BOOTSTRAP"), "group-1"));
         TopicPartition topicPartition = new TopicPartition(topic, partition);
         Set<TopicPartition> topicPartitions = new HashSet<>();
         topicPartitions.add(topicPartition);

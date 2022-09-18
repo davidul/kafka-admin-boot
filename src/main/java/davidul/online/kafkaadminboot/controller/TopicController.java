@@ -32,6 +32,12 @@ public class TopicController {
         this.resultQueue = resultQueue;
     }
 
+    /**
+     *
+     * @param internal includes internal topics in response
+     * @param queueId retrieve the response from queue
+     * @return
+     */
     @GetMapping(value = "/topics", produces = "application/json")
     public ResponseEntity<Set<String>> getTopics(@RequestParam(value = "internal", required = false) String internal,
                                                  @RequestHeader(name = "queue-id", required = false) String queueId) {
@@ -54,7 +60,7 @@ public class TopicController {
             return ResponseEntity.ok(listTopicsDTO.getTopicNames());
         }else{
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
-            if(kafkaRequest.isDone()) {
+            if(kafkaRequest != null && kafkaRequest.isDone()) {
                 try {
                     Object o = kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
@@ -69,22 +75,47 @@ public class TopicController {
     }
 
     @GetMapping(value = "/topics/describe", produces = "application/json")
-    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false) String internal) {
+    public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false)
+                                                                       String internal,
+                                                                   @RequestHeader(name = "queue-id", required = false) String queueId) {
         Boolean isInternal = Boolean.FALSE;
-        if(internal != null){
-            isInternal = Boolean.parseBoolean(internal);
-        }
-        List<TopicPartitionsDTO> topicList = new ArrayList<>();
-        final Map<String, TopicDescription> topicsAll = topicService.describeTopicsAll(isInternal);
-        final Iterator<String> iterator = topicsAll.keySet().iterator();
-        while (iterator.hasNext()) {
-            final String next = iterator.next();
-            final TopicDescription topicDescription = topicsAll.get(next);
-            final TopicPartitionsDTO topicPartitionsDTO = new TopicPartitionsDTO(next, Topics.partitions(topicDescription.partitions()));
-            topicList.add(topicPartitionsDTO);
-        }
+        if(queueId == null) {
+            if (internal != null) {
+                isInternal = Boolean.parseBoolean(internal);
+            }
+            List<TopicPartitionsDTO> topicList = new ArrayList<>();
+            final Map<String, TopicDescription> topicsAll;
+            try {
+                topicsAll = topicService.describeTopicsAll(isInternal);
+            } catch (KafkaTimeoutException e) {
+                return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+            } catch (InternalException e) {
+                return ResponseEntity.internalServerError().build();
+            }
 
-        return ResponseEntity.ok(topicList);
+            final Iterator<String> iterator = topicsAll.keySet().iterator();
+            while (iterator.hasNext()) {
+                final String next = iterator.next();
+                final TopicDescription topicDescription = topicsAll.get(next);
+                final TopicPartitionsDTO topicPartitionsDTO = new TopicPartitionsDTO(next, Topics.partitions(topicDescription.partitions()));
+                topicList.add(topicPartitionsDTO);
+            }
+
+            return ResponseEntity.ok(topicList);
+        }else{
+            KafkaRequest kafkaRequest = resultQueue.get(queueId);
+            if(kafkaRequest != null && kafkaRequest.isDone()) {
+                try {
+                    Object o = kafkaRequest.getKafkaFuture().get();
+                    logger.debug("Kafka topics {}", o);
+                    logger.debug("Set of {}", o);
+                    return ResponseEntity.ok((List<TopicPartitionsDTO>) o);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @GetMapping(value = "/topic/describe/{name}", produces = "application/json")
@@ -120,17 +151,33 @@ public class TopicController {
     }
 
     @PostMapping(value = "/topic/{name}")
-    public ResponseEntity<FutureDTO> createTopic(@PathVariable("name") String name) {
-        String uuid = null;
-        try {
-            uuid = this.topicService.createTopic(name);
-        } catch (InternalException e) {
-            throw new RuntimeException(e);
-        } catch (KafkaTimeoutException e) {
-            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+    public ResponseEntity<FutureDTO> createTopic(@PathVariable("name") String name,
+                                                 @RequestHeader(name = "queue-id", required = false) String queueId) {
+
+        if(queueId == null) {
+            String uuid = null;
+            try {
+                uuid = this.topicService.createTopic(name);
+            } catch (InternalException e) {
+                return ResponseEntity.internalServerError().build();
+            } catch (KafkaTimeoutException e) {
+                return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+            }
+            return ResponseEntity.accepted().body(new FutureDTO(uuid));
+        }else {
+            KafkaRequest kafkaRequest = resultQueue.get(queueId);
+            if(kafkaRequest != null && kafkaRequest.isDone()) {
+                try {
+                    Object o = kafkaRequest.getKafkaFuture().get();
+                    logger.debug("Kafka topics {}", o);
+                    logger.debug("Set of {}", o);
+                    return ResponseEntity.ok((FutureDTO) o);
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
-        return ResponseEntity.accepted().body(new FutureDTO(uuid));
-        //return ResponseEntity.accepted().build();
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping(value = "/topic/{name}/partition/{count}")
@@ -142,7 +189,13 @@ public class TopicController {
 
     @DeleteMapping(value = "/topic/{name}")
     public ResponseEntity<Void> deleteTopic(@PathVariable("name") String name) {
-        this.topicService.deleteTopic(name);
+        try {
+            this.topicService.deleteTopic(name);
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+        } catch (InternalException e) {
+            throw new RuntimeException(e);
+        }
         return ResponseEntity.accepted().build();
     }
 
