@@ -6,10 +6,12 @@ import davidul.online.kafkaadminboot.model.OffsetDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
 import org.apache.kafka.clients.admin.ListOffsetsResult;
 import org.apache.kafka.clients.admin.OffsetSpec;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class OffsetController {
@@ -27,7 +29,8 @@ public class OffsetController {
         try {
             earliestOffset = this.topicService.offset(topicName, Integer.parseInt(partition), OffsetSpec.earliest());
         } catch (InternalException e) {
-            return ResponseEntity.internalServerError().build();
+            e.printStackTrace();
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Topic Not found", e);
         }
 
         final ListOffsetsResult.ListOffsetsResultInfo latestOffset;

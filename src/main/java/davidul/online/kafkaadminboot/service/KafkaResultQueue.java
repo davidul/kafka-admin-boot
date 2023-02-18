@@ -9,24 +9,25 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
-public class KafkaResultQueue<T> {
-    private Map<String, KafkaRequest<T>> mp;
+public class KafkaResultQueue {
+
+    private Map<String, KafkaRequest<?>> mp;
 
     public KafkaResultQueue(){
         this.mp = new ConcurrentHashMap<>();
     }
 
-    public String add(KafkaRequest<T> kafkaFuture){
+    public String add(KafkaRequest<?> kafkaFuture){
         UUID uuid = UUID.randomUUID();
         mp.put(uuid.toString(), kafkaFuture);
         return uuid.toString();
     }
 
-    public KafkaRequest<T> get(String uuid){
+    public KafkaRequest<?> get(String uuid){
         return mp.get(uuid);
     }
 
-    public KafkaRequest<T> remove(String key){
+    public KafkaRequest<?> remove(String key){
         return mp.remove(key);
     }
 

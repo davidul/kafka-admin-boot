@@ -2,7 +2,6 @@ package davidul.online.kafkaadminboot.controller;
 
 import davidul.online.kafkaadminboot.exception.InternalException;
 import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
-import davidul.online.kafkaadminboot.model.ClusterDTO;
 import davidul.online.kafkaadminboot.model.FutureDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionsDTO;
 import davidul.online.kafkaadminboot.model.internal.KafkaRequest;
@@ -33,9 +32,8 @@ public class TopicController {
     }
 
     /**
-     *
      * @param internal includes internal topics in response
-     * @param queueId retrieve the response from queue
+     * @param queueId  retrieve the response from queue
      * @return
      */
     @GetMapping(value = "/topics", produces = "application/json")
@@ -43,7 +41,7 @@ public class TopicController {
                                                  @RequestHeader(name = "queue-id", required = false) String queueId) {
 
         logger.debug("header key {}", queueId);
-        if(queueId == null) {
+        if (queueId == null) {
             Boolean listInternal = Boolean.FALSE;
             if (internal != null) {
                 listInternal = Boolean.valueOf(internal);
@@ -58,9 +56,9 @@ public class TopicController {
             }
 
             return ResponseEntity.ok(listTopicsDTO.getTopicNames());
-        }else{
+        } else {
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
-            if(kafkaRequest != null && kafkaRequest.isDone()) {
+            if (kafkaRequest != null && kafkaRequest.isDone()) {
                 try {
                     Object o = kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
@@ -76,10 +74,10 @@ public class TopicController {
 
     @GetMapping(value = "/topics/describe", produces = "application/json")
     public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false)
-                                                                       String internal,
+                                                                   String internal,
                                                                    @RequestHeader(name = "queue-id", required = false) String queueId) {
         Boolean isInternal = Boolean.FALSE;
-        if(queueId == null) {
+        if (queueId == null) {
             if (internal != null) {
                 isInternal = Boolean.parseBoolean(internal);
             }
@@ -102,9 +100,9 @@ public class TopicController {
             }
 
             return ResponseEntity.ok(topicList);
-        }else{
+        } else {
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
-            if(kafkaRequest != null && kafkaRequest.isDone()) {
+            if (kafkaRequest != null && kafkaRequest.isDone()) {
                 try {
                     Object o = kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
@@ -121,7 +119,7 @@ public class TopicController {
     @GetMapping(value = "/topic/describe/{name}", produces = "application/json")
     public ResponseEntity<TopicPartitionsDTO> describeTopic(@PathVariable("name") String name,
                                                             @RequestHeader(name = "queue-id", required = false) String queueId) {
-        if(queueId == null) {
+        if (queueId == null) {
             final TopicDescription topicDescription;
             try {
                 topicDescription = this.topicService.describeTopic(name);
@@ -133,9 +131,9 @@ public class TopicController {
             } catch (KafkaTimeoutException e) {
                 return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
             }
-        }else{
+        } else {
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
-            if(kafkaRequest.isDone()) {
+            if (kafkaRequest.isDone()) {
                 try {
                     Object o = kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
@@ -154,7 +152,7 @@ public class TopicController {
     public ResponseEntity<FutureDTO> createTopic(@PathVariable("name") String name,
                                                  @RequestHeader(name = "queue-id", required = false) String queueId) {
 
-        if(queueId == null) {
+        if (queueId == null) {
             String uuid = null;
             try {
                 uuid = this.topicService.createTopic(name);
@@ -164,9 +162,9 @@ public class TopicController {
                 return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
             }
             return ResponseEntity.accepted().body(new FutureDTO(uuid));
-        }else {
+        } else {
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
-            if(kafkaRequest != null && kafkaRequest.isDone()) {
+            if (kafkaRequest != null && kafkaRequest.isDone()) {
                 try {
                     Object o = kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
@@ -211,9 +209,4 @@ public class TopicController {
     }
 
 
-    @GetMapping(value = "/cluster")
-    public ResponseEntity<ClusterDTO> getCluster(){
-        final ClusterDTO clusterDTO = this.topicService.describeCluster();
-        return ResponseEntity.ok(clusterDTO);
-    }
 }

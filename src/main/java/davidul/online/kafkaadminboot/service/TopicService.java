@@ -9,7 +9,6 @@ import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.KafkaFuture;
-import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.requests.DescribeLogDirsResponse;
@@ -55,7 +54,10 @@ public class TopicService {
         listTopicsOptions.listInternal(listInternal);
         final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
         KafkaFuture<Set<String>> names = listTopicsResult.names();
-        return  (ListTopicsDTO)handleFuture(names, "listTopics");
+        Set<String> listTopics = KafkaFutureHandler.handleFuture(names, "listTopics", kafkaResultQueue);
+        //Set<String> listTopics = (Set<String>) handleFuture(names, "listTopics");
+        ListTopicsDTO listTopicsDTO = new ListTopicsDTO(listTopics, false, null);
+        return listTopicsDTO;
     }
 
     public Map<String, TopicDescription> describeTopicsAll(Boolean internal) throws KafkaTimeoutException, InternalException {
@@ -219,25 +221,7 @@ public class TopicService {
 
     }
 
-    public ClusterDTO describeCluster() {
-        List<NodeDTO> nodeDTOList = new ArrayList<>();
-        final DescribeClusterResult describeClusterResult = connectionService.adminClient().describeCluster();
-        try {
-            for (Node node : describeClusterResult.nodes().get()) {
-                nodeDTOList.add(Topics.node(node));
-            }
 
-            final String s = describeClusterResult.clusterId().get();
-
-            final Node node = describeClusterResult.controller().get();
-            final NodeDTO controller = Topics.node(node);
-            return new ClusterDTO(s, nodeDTOList, controller);
-        } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
-        }
-
-        return null;
-    }
 
     public void describeConfigs() {
 
@@ -250,7 +234,7 @@ public class TopicService {
     public void x(Collection<Integer> brokers) {
     }
 
-    protected Object handleFuture(KafkaFuture kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
+    public Object handleFuture(KafkaFuture kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
         try {
             return kafkaFuture.get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
