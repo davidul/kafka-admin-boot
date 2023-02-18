@@ -1,0 +1,31 @@
+version: "3"
+services:
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper
+    ports:
+      - "2181:2181"
+
+  kafka:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '9092'
+      - '19092'
+    environment:
+      ZOOKEEPER: zookeeper:2181
+      ADVERTISED_LISTENER: 172.20.10.2
+    depends_on:
+      - zookeeper
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  kafka-admin-boot:
+    image: kafka-admin-boot
+    ports:
+      - '8080:8080'
+    environment:
+      KAFKA_BOOTSTRAP: kafka:9092
+    depends_on:
+      - kafka
