@@ -1,3 +1,23 @@
+# Build
+
+```shell
+make build
+```
+
+Build docker image
+
+```shell
+make build-docker
+```
+
+# Run Kafka
+Simplest way how to execute the kafka admin
+is to run the static network configuration.
+Located in `./kafka/docker/static` . Here is a
+docker compose file which assignes static IP address to
+each server: kafka, zookeeper, kafka-admin-boot.
+
+
 # Kafka Admin 
 Simple REST based Kafka administration tool. It is not intended
 for production use at the moment.
@@ -74,8 +94,9 @@ Describe single topic
 
 ## Create topic
 
-`POST /topic/another-topic`
+`POST /topic/{topic-name}`
 
+Where `{topic-name}` is the required topic name.
 Returns 202 Accepted in case of success.
 
 ## Create partition
