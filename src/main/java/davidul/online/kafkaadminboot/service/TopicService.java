@@ -80,7 +80,7 @@ public class TopicService {
         try {
             Set<String> names = topic.keySet();
             for (String uuid : names) {
-                TopicDescription topicDescription = topic.get(uuid).get(1, TimeUnit.MILLISECONDS);
+                TopicDescription topicDescription = topic.get(uuid).get(Long.valueOf(timeout), TimeUnit.MILLISECONDS);
                 return topicDescription;
             }
             return null;

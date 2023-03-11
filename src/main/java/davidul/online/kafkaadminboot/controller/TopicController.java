@@ -3,6 +3,7 @@ package davidul.online.kafkaadminboot.controller;
 import davidul.online.kafkaadminboot.exception.InternalException;
 import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.model.FutureDTO;
+import davidul.online.kafkaadminboot.model.TopicDTO;
 import davidul.online.kafkaadminboot.model.TopicPartitionsDTO;
 import davidul.online.kafkaadminboot.model.internal.KafkaRequest;
 import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @RestController
 public class TopicController {
@@ -37,8 +39,8 @@ public class TopicController {
      * @return
      */
     @GetMapping(value = "/topics", produces = "application/json")
-    public ResponseEntity<Set<String>> getTopics(@RequestParam(value = "internal", required = false) String internal,
-                                                 @RequestHeader(name = "queue-id", required = false) String queueId) {
+    public ResponseEntity<List<TopicDTO>> getTopics(@RequestParam(value = "internal", required = false) String internal,
+                                                    @RequestHeader(name = "queue-id", required = false) String queueId) {
 
         logger.debug("header key {}", queueId);
         if (queueId == null) {
@@ -55,15 +57,21 @@ public class TopicController {
                 return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
             }
 
-            return ResponseEntity.ok(listTopicsDTO.getTopicNames());
+            List<TopicDTO> topics = listTopicsDTO
+                    .getTopicNames()
+                    .stream()
+                    .map(t -> new TopicDTO(t))
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(topics);
         } else {
             KafkaRequest kafkaRequest = resultQueue.get(queueId);
             if (kafkaRequest != null && kafkaRequest.isDone()) {
                 try {
-                    Object o = kafkaRequest.getKafkaFuture().get();
+                    Set<String> o = (Set<String>)kafkaRequest.getKafkaFuture().get();
                     logger.debug("Kafka topics {}", o);
                     logger.debug("Set of {}", o);
-                    return ResponseEntity.ok((Set<String>) o);
+                    List<TopicDTO> collect = o.stream().map(t -> new TopicDTO(t)).collect(Collectors.toList());
+                    return ResponseEntity.ok(collect);
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }
@@ -75,7 +83,8 @@ public class TopicController {
     @GetMapping(value = "/topics/describe", produces = "application/json")
     public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false)
                                                                    String internal,
-                                                                   @RequestHeader(name = "queue-id", required = false) String queueId) {
+                                                                   @RequestHeader(name = "queue-id", required = false)
+                                                                   String queueId) {
         Boolean isInternal = Boolean.FALSE;
         if (queueId == null) {
             if (internal != null) {
