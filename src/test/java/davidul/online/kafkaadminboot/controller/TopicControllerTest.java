@@ -8,7 +8,7 @@ import org.springframework.kafka.test.context.EmbeddedKafka;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.is;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -45,15 +45,24 @@ class TopicControllerTest {
     }
 
     @Test
-    void createTopic() {
+    void createTopic() throws Exception {
+        this.mockMvc.perform(post("/topic/{name}", "test-topic-a"))
+                .andExpect(status().isAccepted());
     }
 
     @Test
-    void addPartition() {
+    void addPartition() throws Exception {
+        this.mockMvc.perform(post("/topic/{name}/partition/{count}", "test-topic", 1))
+                .andExpect(status().isAccepted());
     }
 
     @Test
-    void deleteTopic() {
+    void deleteTopic() throws Exception {
+        this.mockMvc.perform(post("/topic/{name}", "test-topic-b"))
+                .andExpect(status().isAccepted());
+
+        this.mockMvc.perform(delete("/topic/{name}", "test-topic-b"))
+                .andExpect(status().isAccepted());
     }
 
     @Test

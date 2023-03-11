@@ -13,6 +13,7 @@ import org.apache.kafka.common.Node;
 import org.apache.kafka.common.quota.ClientQuotaFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -26,6 +27,9 @@ public class ClusterService {
 
     private final TopicService topicService;
 
+    @Value("${admin.timeout}")
+    private String timeout;
+
     private static final Logger logger = LoggerFactory.getLogger(TopicService.class);
 
     public ClusterService(ConnectionService connectionService, TopicService topicService) {
@@ -34,6 +38,7 @@ public class ClusterService {
     }
 
     public ClusterDTO describeCluster() {
+        logger.info("describe cluster");
         List<NodeDTO> nodeDTOList = new ArrayList<>();
         final DescribeClusterResult describeClusterResult = connectionService.adminClient().describeCluster();
         try {
@@ -67,7 +72,8 @@ public class ClusterService {
                 .handleFuture(
                         connectionService
                                 .adminClient()
-                                .describeFeatures().featureMetadata(), "", null);
+                                .describeFeatures().featureMetadata(), "", null,
+                        Integer.valueOf(timeout));
 
         DescribeFeaturesResult describeFeaturesResult = connectionService
                 .adminClient()

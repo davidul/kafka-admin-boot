@@ -17,9 +17,12 @@ public class KafkaFutureHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaFutureHandler.class);
 
-    public static <T> T handleFuture(KafkaFuture<T> kafkaFuture, String createdBy, KafkaResultQueue kafkaResultQueue) throws InternalException, KafkaTimeoutException {
+    public static <T> T handleFuture(KafkaFuture<T> kafkaFuture,
+                                     String createdBy,
+                                     KafkaResultQueue kafkaResultQueue,
+                                     Integer timeout) throws InternalException, KafkaTimeoutException {
         try {
-            return kafkaFuture.get(Integer.parseInt("1000"), TimeUnit.MILLISECONDS);
+            return kafkaFuture.get(timeout, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             logger.error("Exception: ", e);
             throw new InternalException(e);

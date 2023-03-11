@@ -26,7 +26,7 @@ public class TopicController {
 
     private final KafkaResultQueue resultQueue;
 
-    private Logger logger = LoggerFactory.getLogger(TopicController.class);
+    private final Logger logger = LoggerFactory.getLogger(TopicController.class);
 
     public TopicController(TopicService topicService, KafkaResultQueue resultQueue) {
         this.topicService = topicService;

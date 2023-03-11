@@ -52,19 +52,26 @@ public class TopicService {
         logger.debug("Listing topics");
         final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
         listTopicsOptions.listInternal(listInternal);
+
         final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
         KafkaFuture<Set<String>> names = listTopicsResult.names();
-        Set<String> listTopics = KafkaFutureHandler.handleFuture(names, "listTopics", kafkaResultQueue);
-        //Set<String> listTopics = (Set<String>) handleFuture(names, "listTopics");
+        Set<String> listTopics = KafkaFutureHandler.handleFuture(names,
+                "listTopics",
+                kafkaResultQueue,
+                Integer.valueOf(timeout));
         ListTopicsDTO listTopicsDTO = new ListTopicsDTO(listTopics, false, null);
         return listTopicsDTO;
     }
 
     public Map<String, TopicDescription> describeTopicsAll(Boolean internal) throws KafkaTimeoutException, InternalException {
-            ListTopicsDTO listTopicsDTO = listTopics(internal);
-            KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = connectionService.adminClient()
-                    .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
-        return (Map<String, TopicDescription>) handleFuture(mapKafkaFuture, "describeTopicsAll");
+        ListTopicsDTO listTopicsDTO = listTopics(internal);
+        KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = connectionService.adminClient()
+                .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
+        Map<String, TopicDescription> describeTopicsAll = KafkaFutureHandler.handleFuture(mapKafkaFuture,
+                "describeTopicsAll",
+                kafkaResultQueue,
+                Integer.valueOf(timeout));
+        return describeTopicsAll;
     }
 
     /**
@@ -77,6 +84,7 @@ public class TopicService {
         DescribeTopicsResult describeTopicsResult = connectionService
                 .adminClient().describeTopics(Collections.singletonList(name));
         final Map<String, KafkaFuture<TopicDescription>> topic = describeTopicsResult.topicNameValues();
+
         try {
             Set<String> names = topic.keySet();
             for (String uuid : names) {
@@ -101,22 +109,29 @@ public class TopicService {
         topics.add(newTopic);
         CreateTopicsResult topics1 = connectionService.adminClient().createTopics(topics);
         KafkaFuture<Uuid> uuidKafkaFuture = topics1.topicId(name);
-        Uuid o = (Uuid)handleFuture(uuidKafkaFuture, "createTopic");
-        return o.toString();
+        Uuid createTopic = KafkaFutureHandler.handleFuture(uuidKafkaFuture,
+                "createTopic",
+                kafkaResultQueue,
+                Integer.valueOf(timeout));
+        return createTopic.toString();
     }
 
     public void deleteTopic(String name) throws KafkaTimeoutException, InternalException {
         DeleteTopicsResult deleteTopicsResult = connectionService.adminClient()
                 .deleteTopics(Collections.singletonList(name));
         KafkaFuture<Void> all = deleteTopicsResult.all();
-        handleFuture(all, "deleteTopics");
+        Void deleteTopic = KafkaFutureHandler.handleFuture(all,
+                "deleteTopic",
+                kafkaResultQueue,
+                Integer.valueOf(timeout));
     }
 
     public void createPartition(String topicName, int numPartitions) {
         Map<String, NewPartitions> map = new HashMap<>();
         final NewPartitions newPartitions = NewPartitions.increaseTo(numPartitions);
         map.put(topicName, newPartitions);
-        connectionService.adminClient().createPartitions(map);
+        CreatePartitionsResult partitions = connectionService.adminClient().createPartitions(map);
+
     }
 
     public void deleteRecords(String topicName, int partition) throws InternalException {
@@ -220,7 +235,6 @@ public class TopicService {
         return brokerMap;
 
     }
-
 
 
     public void describeConfigs() {
