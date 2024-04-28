@@ -1,0 +1,3 @@
+[submodule "kafka-env"]
+	path = kafka-env
+	url = https://github.com/davidul/kafka-env

@@ -1,5 +1,6 @@
 package davidul.online.kafkaadminboot.service;
 
+import jakarta.annotation.PostConstruct;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -15,10 +16,11 @@ public class ConnectionService {
     private Properties properties;
     private AdminClient adminClient;
 
+
     public ConnectionService() {
         String kafka_bootstrap = System.getenv().get("KAFKA_BOOTSTRAP");
         if(kafka_bootstrap == null){
-            kafka_bootstrap = "127.0.0.1:9092";
+            kafka_bootstrap = "localhost:9092";
         }
         this.properties = new Properties();
         this.properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafka_bootstrap);
@@ -32,9 +34,26 @@ public class ConnectionService {
 
     }
 
+//    @PostConstruct
+//    public void init(){
+//        this.adminClient = AdminClient.create(this.properties);
+//    }
+
     public AdminClient adminClient() {
-        if (adminClient == null)
+        if (adminClient == null){
             this.adminClient = AdminClient.create(this.properties);
+        }
         return adminClient;
     }
+
+    public AdminClient adminClient(Properties properties){
+        if (adminClient == null){
+            if (properties == null){
+                this.adminClient = adminClient();
+            }
+            this.adminClient = AdminClient.create(properties);
+        }
+        return adminClient;
+    }
+
 }

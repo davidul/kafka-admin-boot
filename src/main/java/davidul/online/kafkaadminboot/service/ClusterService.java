@@ -23,7 +23,7 @@ import java.util.concurrent.ExecutionException;
 @Service
 public class ClusterService {
 
-    private ConnectionService connectionService;
+    private final ConnectionService connectionService;
 
     private final TopicService topicService;
 

@@ -7,9 +7,11 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.kafka.test.EmbeddedKafkaZKBroker;
 import org.springframework.kafka.test.context.EmbeddedKafka;
 
 import java.util.Map;
@@ -31,6 +33,17 @@ public class TopicServiceTest {
 
     @Autowired
     private KafkaResultQueue kafkaResultQueue;
+
+    @BeforeAll
+    static void beforeAll() {
+        EmbeddedKafkaZKBroker embeddedKafkaZKBroker = new EmbeddedKafkaZKBroker(1);
+
+        embeddedKafkaZKBroker.kafkaPorts(9092);
+        embeddedKafkaZKBroker.afterPropertiesSet();
+        embeddedKafkaZKBroker.getKafkaServer(0).startup();
+        embeddedKafkaZKBroker.addTopics("test-topic");
+        embeddedKafkaZKBroker.addTopics("delete-topic");
+    }
 
     @Test
     public void connect() {
