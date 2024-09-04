@@ -16,3 +16,6 @@ cleanup:
 
 download-kafka:
 	$(MAKE) -C kafka-env download-kafka
+
+apache-latest:
+	$(MAKE) -C kafka-env apache-latest
