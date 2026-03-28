@@ -1,9 +1,9 @@
-FROM maven:3.8.6-eclipse-temurin-17 as build
+FROM maven:3.9.14-eclipse-temurin-25-alpine as build
 COPY /src /app/src
 COPY pom.xml /app
 RUN mvn -f /app/pom.xml clean package -DskipTests
 
-FROM openjdk:17
+FROM openjdk:25-ea-21-jdk-slim
 
 RUN mkdir /app
 COPY --from=build /app/target/kafka-admin-boot-0.0.2-SNAPSHOT.jar /app
