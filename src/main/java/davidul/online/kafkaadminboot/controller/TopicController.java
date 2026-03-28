@@ -243,6 +243,8 @@ public class TopicController {
     public ResponseEntity<Void> addPartition(@PathVariable("name") String name, @PathVariable("count") Integer count) {
         try {
             this.topicService.createPartition(name, count);
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
         } catch (InternalException e) {
             return ResponseEntity.internalServerError().build();
         }
@@ -281,6 +283,8 @@ public class TopicController {
                                               @PathVariable("partition") String partition) {
         try {
             this.topicService.deleteRecords(topicName, Integer.parseInt(partition));
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
         } catch (InternalException e) {
             return ResponseEntity.internalServerError().build();
         }

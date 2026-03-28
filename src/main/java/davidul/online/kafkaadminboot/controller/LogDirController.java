@@ -1,5 +1,7 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.exception.InternalException;
+import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.model.LogDirInfoDTO;
 import davidul.online.kafkaadminboot.service.TopicService;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +21,13 @@ public class LogDirController {
     }
 
     @GetMapping(value = "/logdirs")
-    public ResponseEntity<Map<Integer, Map<String, LogDirInfoDTO>>> getLogDirs(){
-        final Map<Integer, Map<String, LogDirInfoDTO>> integerMapMap = this.topicService.describeLogDirs(Collections.singleton(0));
-        return ResponseEntity.ok(integerMapMap);
+    public ResponseEntity<Map<Integer, Map<String, LogDirInfoDTO>>> getLogDirs() {
+        try {
+            return ResponseEntity.ok(this.topicService.describeLogDirs(Collections.singleton(0)));
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

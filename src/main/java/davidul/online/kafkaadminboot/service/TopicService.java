@@ -4,7 +4,6 @@ import davidul.online.kafkaadminboot.controller.Topics;
 import davidul.online.kafkaadminboot.exception.InternalException;
 import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.model.*;
-import davidul.online.kafkaadminboot.model.internal.KafkaRequest;
 import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -17,235 +16,189 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Service
 public class TopicService {
 
     private final ConnectionService connectionService;
-
     private final KafkaResultQueue kafkaResultQueue;
-
-    @Value("${admin.timeout}")
-    private int timeout;
+    private final int timeout;
 
     private static final Logger logger = LoggerFactory.getLogger(TopicService.class);
 
-    public TopicService(ConnectionService connectionService, KafkaResultQueue kafkaResultQueue) {
+    public TopicService(ConnectionService connectionService,
+                        KafkaResultQueue kafkaResultQueue,
+                        @Value("${admin.timeout}") int timeout) {
         this.connectionService = connectionService;
         this.kafkaResultQueue = kafkaResultQueue;
+        this.timeout = timeout;
     }
 
+    // -------------------------------------------------------------------------
+    // Topic operations
+    // -------------------------------------------------------------------------
+
     /**
-     * Returns {@link ListTopicsDTO} .
+     * Returns the set of topic names visible to the current principal.
      *
-     * @param listInternal internal topics included
-     * @return {@link ListTopicsDTO} topic names
+     * @param listInternal include internal Kafka topics (e.g. __consumer_offsets)
      */
     public ListTopicsDTO listTopics(Boolean listInternal) throws InternalException, KafkaTimeoutException {
         logger.debug("Listing topics");
-        final ListTopicsOptions listTopicsOptions = new ListTopicsOptions();
-        listTopicsOptions.listInternal(listInternal);
-
-        final ListTopicsResult listTopicsResult = connectionService.adminClient().listTopics(listTopicsOptions);
-        KafkaFuture<Set<String>> names = listTopicsResult.names();
-        Set<String> listTopics = KafkaFutureHandler.handleFuture(names,
-                "listTopics",
-                kafkaResultQueue,
-                timeout);
-        return new ListTopicsDTO(listTopics, false, null);
-    }
-
-    public Map<String, TopicDescription> describeTopicsAll(Boolean internal) throws KafkaTimeoutException, InternalException {
-        ListTopicsDTO listTopicsDTO = listTopics(internal);
-        KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = connectionService.adminClient()
-                .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
-        return KafkaFutureHandler.handleFuture(mapKafkaFuture,
-                "describeTopicsAll",
-                kafkaResultQueue,
-                timeout);
+        final ListTopicsOptions options = new ListTopicsOptions().listInternal(listInternal);
+        final KafkaFuture<Set<String>> names = connectionService.adminClient().listTopics(options).names();
+        return new ListTopicsDTO(handleFuture(names, "listTopics"), false, null);
     }
 
     /**
-     * Describe topic.
-     *
-     * @param name
-     * @return
+     * Describes all topics, optionally including internal ones.
+     */
+    public Map<String, TopicDescription> describeTopicsAll(Boolean internal)
+            throws KafkaTimeoutException, InternalException {
+        ListTopicsDTO listTopicsDTO = listTopics(internal);
+        KafkaFuture<Map<String, TopicDescription>> future = connectionService.adminClient()
+                .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
+        return handleFuture(future, "describeTopicsAll");
+    }
+
+    /**
+     * Describes a single topic by name.
      */
     public TopicDescription describeTopic(String name) throws InternalException, KafkaTimeoutException {
-        DescribeTopicsResult describeTopicsResult = connectionService
-                .adminClient().describeTopics(Collections.singletonList(name));
-        final Map<String, KafkaFuture<TopicDescription>> topic = describeTopicsResult.topicNameValues();
-
-        try {
-            Set<String> names = topic.keySet();
-            for (String topicName : names) {
-                return topic.get(topicName).get(timeout, TimeUnit.MILLISECONDS);
-            }
-            return null;
-        } catch (InterruptedException | ExecutionException e) {
-            throw new InternalException(e);
-        } catch (TimeoutException e) {
-            logger.debug("Timeout exception");
-            String key = kafkaResultQueue.add(
-                    new KafkaRequest<>(LocalDateTime.now(), topic.get(name), "describeTopic"));
-
-            throw new KafkaTimeoutException(key);
-        }
+        final KafkaFuture<TopicDescription> future = connectionService.adminClient()
+                .describeTopics(Collections.singletonList(name))
+                .topicNameValues()
+                .get(name);
+        return handleFuture(future, "describeTopic");
     }
 
+    /**
+     * Creates a topic with 1 partition and replication factor 1.
+     *
+     * @return the new topic's UUID string
+     */
     public String createTopic(String name) throws InternalException, KafkaTimeoutException {
-        Set<NewTopic> topics = new HashSet<>();
         NewTopic newTopic = new NewTopic(name, 1, (short) 1);
-        topics.add(newTopic);
-        CreateTopicsResult topics1 = connectionService.adminClient().createTopics(topics);
-        KafkaFuture<Uuid> uuidKafkaFuture = topics1.topicId(name);
-        Uuid createTopic = KafkaFutureHandler.handleFuture(uuidKafkaFuture,
-                "createTopic",
-                kafkaResultQueue,
-                timeout);
-        return createTopic.toString();
+        CreateTopicsResult result = connectionService.adminClient().createTopics(Set.of(newTopic));
+        Uuid uuid = handleFuture(result.topicId(name), "createTopic");
+        return uuid.toString();
     }
 
+    /**
+     * Deletes the named topic.
+     */
     public void deleteTopic(String name) throws KafkaTimeoutException, InternalException {
-        DeleteTopicsResult deleteTopicsResult = connectionService.adminClient()
-                .deleteTopics(Collections.singletonList(name));
-        KafkaFuture<Void> all = deleteTopicsResult.all();
-        KafkaFutureHandler.handleFuture(all,
-                "deleteTopic",
-                kafkaResultQueue,
-                timeout);
+        KafkaFuture<Void> future = connectionService.adminClient()
+                .deleteTopics(Collections.singletonList(name)).all();
+        handleFuture(future, "deleteTopic");
     }
 
-    public void createPartition(String topicName, int numPartitions) throws InternalException {
-        Map<String, NewPartitions> map = new HashMap<>();
-        final NewPartitions newPartitions = NewPartitions.increaseTo(numPartitions);
-        map.put(topicName, newPartitions);
-        try {
-            connectionService.adminClient().createPartitions(map).all().get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new InternalException(e);
-        }
+    /**
+     * Sets the total partition count for a topic.
+     * Note: {@code numPartitions} is the desired <em>total</em>, not an increment.
+     */
+    public void createPartition(String topicName, int numPartitions)
+            throws InternalException, KafkaTimeoutException {
+        Map<String, NewPartitions> map = Map.of(topicName, NewPartitions.increaseTo(numPartitions));
+        handleFuture(connectionService.adminClient().createPartitions(map).all(), "createPartition");
     }
 
-    public void deleteRecords(String topicName, int partition) throws InternalException {
-        final TopicPartition topicPartition = new TopicPartition(topicName, partition);
-        final HashMap<TopicPartition, RecordsToDelete> deleteHashMap = new HashMap<>();
-        deleteHashMap.put(topicPartition, RecordsToDelete.beforeOffset(Long.MAX_VALUE));
-        try {
-            connectionService.adminClient().deleteRecords(deleteHashMap).all().get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new InternalException(e);
-        }
+    /**
+     * Deletes all records in the given partition (truncates to latest offset).
+     */
+    public void deleteRecords(String topicName, int partition)
+            throws InternalException, KafkaTimeoutException {
+        TopicPartition topicPartition = new TopicPartition(topicName, partition);
+        Map<TopicPartition, RecordsToDelete> deleteMap =
+                Map.of(topicPartition, RecordsToDelete.beforeOffset(Long.MAX_VALUE));
+        handleFuture(connectionService.adminClient().deleteRecords(deleteMap).all(), "deleteRecords");
     }
 
-    public ListOffsetsResult.ListOffsetsResultInfo offset(String topicName, int partition, OffsetSpec offsetSpec) throws InternalException {
-        final TopicPartition topicPartition = new TopicPartition(topicName, partition);
-        Map<TopicPartition, OffsetSpec> specMap = new HashMap<>();
-        specMap.put(topicPartition, offsetSpec);
-        try {
-            return
-                    connectionService.adminClient().listOffsets(specMap).partitionResult(topicPartition).get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new InternalException(e);
-        }
+    /**
+     * Returns offset information for the given partition and offset spec.
+     */
+    public ListOffsetsResult.ListOffsetsResultInfo offset(String topicName, int partition,
+                                                          OffsetSpec offsetSpec)
+            throws InternalException, KafkaTimeoutException {
+        TopicPartition topicPartition = new TopicPartition(topicName, partition);
+        Map<TopicPartition, OffsetSpec> specMap = Map.of(topicPartition, offsetSpec);
+        return handleFuture(
+                connectionService.adminClient().listOffsets(specMap).partitionResult(topicPartition),
+                "offset");
     }
 
-    public List<ConsumerGroupListingDTO> listConsumerGroups() {
-        final ListConsumerGroupsResult listConsumerGroupsResult = connectionService.adminClient().listConsumerGroups();
+    // -------------------------------------------------------------------------
+    // Consumer group operations
+    // -------------------------------------------------------------------------
+
+    public List<ConsumerGroupListingDTO> listConsumerGroups()
+            throws InternalException, KafkaTimeoutException {
+        Collection<ConsumerGroupListing> listings = handleFuture(
+                connectionService.adminClient().listConsumerGroups().all(),
+                "listConsumerGroups");
         List<ConsumerGroupListingDTO> dtos = new ArrayList<>();
-        try {
-            for (ConsumerGroupListing consumerGroupListing : listConsumerGroupsResult.all().get()) {
-                dtos.add(new ConsumerGroupListingDTO(consumerGroupListing.groupId(),
-                        consumerGroupListing.isSimpleConsumerGroup()));
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Failed to list consumer groups", e);
+        for (ConsumerGroupListing listing : listings) {
+            dtos.add(new ConsumerGroupListingDTO(listing.groupId(), listing.isSimpleConsumerGroup()));
         }
         return dtos;
     }
 
-    public Map<TopicPartitionDTO, OffsetAndMetadataDTO> listConsumerGroupOffsets(String groupId) {
-        Map<TopicPartitionDTO, OffsetAndMetadataDTO> map = new HashMap<>();
-        final ListConsumerGroupOffsetsResult listConsumerGroupOffsetsResult = connectionService.adminClient().listConsumerGroupOffsets(groupId);
-        try {
-            final Map<TopicPartition, OffsetAndMetadata> topicPartitionOffsetAndMetadataMap = listConsumerGroupOffsetsResult.partitionsToOffsetAndMetadata().get();
-            for (TopicPartition topicPartition : topicPartitionOffsetAndMetadataMap.keySet()) {
-                final OffsetAndMetadata offsetAndMetadata = topicPartitionOffsetAndMetadataMap.get(topicPartition);
-                final TopicPartitionDTO topicPartitionDTO = Topics.topicPartition(topicPartition);
-                final OffsetAndMetadataDTO offsetAndMetadataDTO = Topics.offsetAndMetadata(offsetAndMetadata);
-                map.put(topicPartitionDTO, offsetAndMetadataDTO);
-            }
-
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Failed to list consumer group offsets for groupId={}", groupId, e);
+    public Map<TopicPartitionDTO, OffsetAndMetadataDTO> listConsumerGroupOffsets(String groupId)
+            throws InternalException, KafkaTimeoutException {
+        Map<TopicPartition, OffsetAndMetadata> raw = handleFuture(
+                connectionService.adminClient()
+                        .listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata(),
+                "listConsumerGroupOffsets");
+        Map<TopicPartitionDTO, OffsetAndMetadataDTO> result = new HashMap<>();
+        for (Map.Entry<TopicPartition, OffsetAndMetadata> entry : raw.entrySet()) {
+            result.put(Topics.topicPartition(entry.getKey()), Topics.offsetAndMetadata(entry.getValue()));
         }
-
-        return map;
-
+        return result;
     }
 
-    public Map<String, ConsumerGroupDescriptionDTO> describerConsumerGroups(Collection<String> groupIds) {
-        Map<String, ConsumerGroupDescriptionDTO> consumerGroupDescriptionDTOMap = new HashMap<>();
-        final KafkaFuture<Map<String, ConsumerGroupDescription>> all = connectionService.adminClient().describeConsumerGroups(groupIds).all();
-        try {
-            final Map<String, ConsumerGroupDescription> map = all.get();
-            for (String s : map.keySet()) {
-                final ConsumerGroupDescription consumerGroupDescription = map.get(s);
-                final ConsumerGroupDescriptionDTO consumerGroupDescriptionDTO = Topics.consumerGroupDescription(consumerGroupDescription);
-                consumerGroupDescriptionDTOMap.put(s, consumerGroupDescriptionDTO);
-            }
-
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Failed to describe consumer groups {}", groupIds, e);
+    public Map<String, ConsumerGroupDescriptionDTO> describerConsumerGroups(Collection<String> groupIds)
+            throws InternalException, KafkaTimeoutException {
+        Map<String, ConsumerGroupDescription> raw = handleFuture(
+                connectionService.adminClient().describeConsumerGroups(groupIds).all(),
+                "describerConsumerGroups");
+        Map<String, ConsumerGroupDescriptionDTO> result = new HashMap<>();
+        for (Map.Entry<String, ConsumerGroupDescription> entry : raw.entrySet()) {
+            result.put(entry.getKey(), Topics.consumerGroupDescription(entry.getValue()));
         }
-
-        return consumerGroupDescriptionDTOMap;
+        return result;
     }
 
-    public Map<Integer, Map<String, LogDirInfoDTO>> describeLogDirs(Collection<Integer> brokers) {
+    // -------------------------------------------------------------------------
+    // Log directory operations
+    // -------------------------------------------------------------------------
+
+    public Map<Integer, Map<String, LogDirInfoDTO>> describeLogDirs(Collection<Integer> brokers)
+            throws InternalException, KafkaTimeoutException {
+        Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> raw = handleFuture(
+                connectionService.adminClient().describeLogDirs(brokers).all(),
+                "describeLogDirs");
         Map<Integer, Map<String, LogDirInfoDTO>> brokerMap = new HashMap<>();
-
-        final DescribeLogDirsResult describeLogDirsResult = connectionService.adminClient().describeLogDirs(brokers);
-        try {
-            final Map<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> integerMapMap = describeLogDirsResult.all().get();
-            for (Integer integer : integerMapMap.keySet()) {
-                final Map<String, DescribeLogDirsResponse.LogDirInfo> stringLogDirInfoMap = integerMapMap.get(integer);
-                Map<String, LogDirInfoDTO> dirInfoDTOMap = new HashMap<>();
-                for (String s : stringLogDirInfoMap.keySet()) {
-                    final DescribeLogDirsResponse.LogDirInfo logDirInfo = stringLogDirInfoMap.get(s);
-                    final LogDirInfoDTO logDirInfoDTO = Topics.logDirInfo(logDirInfo);
-                    dirInfoDTOMap.put(s, logDirInfoDTO);
-                }
-                brokerMap.put(integer, dirInfoDTOMap);
-
+        for (Map.Entry<Integer, Map<String, DescribeLogDirsResponse.LogDirInfo>> brokerEntry : raw.entrySet()) {
+            Map<String, LogDirInfoDTO> dirMap = new HashMap<>();
+            for (Map.Entry<String, DescribeLogDirsResponse.LogDirInfo> dirEntry : brokerEntry.getValue().entrySet()) {
+                dirMap.put(dirEntry.getKey(), Topics.logDirInfo(dirEntry.getValue()));
             }
-
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Failed to describe log dirs for brokers {}", brokers, e);
+            brokerMap.put(brokerEntry.getKey(), dirMap);
         }
-
         return brokerMap;
-
     }
 
+    // -------------------------------------------------------------------------
+    // Future handling
+    // -------------------------------------------------------------------------
 
-    public void describeConfigs() {
-
-    }
-
-    public void fetcher() {
-
-    }
-
-    public void x(Collection<Integer> brokers) {
-    }
-
-    public <T> T handleFuture(KafkaFuture<T> kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
+    /**
+     * Convenience wrapper that delegates to {@link KafkaFutureHandler} with
+     * the injected {@link KafkaResultQueue} and {@code timeout}.
+     */
+    public <T> T handleFuture(KafkaFuture<T> kafkaFuture, String createdBy)
+            throws InternalException, KafkaTimeoutException {
         return KafkaFutureHandler.handleFuture(kafkaFuture, createdBy, kafkaResultQueue, timeout);
     }
 }

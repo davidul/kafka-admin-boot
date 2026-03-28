@@ -1,5 +1,7 @@
 package davidul.online.kafkaadminboot.controller;
 
+import davidul.online.kafkaadminboot.exception.InternalException;
+import davidul.online.kafkaadminboot.exception.KafkaTimeoutException;
 import davidul.online.kafkaadminboot.model.ConsumerGroupDescriptionDTO;
 import davidul.online.kafkaadminboot.model.ConsumerGroupListingDTO;
 import davidul.online.kafkaadminboot.model.ConsumerGroupOffsetDTO;
@@ -26,27 +28,45 @@ public class ConsumerGroupController {
     }
 
     @GetMapping(value = "/consumergroups")
-    public ResponseEntity<List<ConsumerGroupListingDTO>> listConsumerGroups(){
-        final List<ConsumerGroupListingDTO> consumerGroupListingDTOS = this.topicService.listConsumerGroups();
-        return ResponseEntity.ok(consumerGroupListingDTOS);
+    public ResponseEntity<List<ConsumerGroupListingDTO>> listConsumerGroups() {
+        try {
+            return ResponseEntity.ok(this.topicService.listConsumerGroups());
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @GetMapping(value = "/consumergroup/{groupId}/offset")
-    public ResponseEntity<List<ConsumerGroupOffsetDTO>> listConsumerGroupOffsets(@PathVariable("groupId") String groupId){
-        List<ConsumerGroupOffsetDTO> offsetDTOS = new ArrayList<>();
-        final Map<TopicPartitionDTO, OffsetAndMetadataDTO> map = this.topicService.listConsumerGroupOffsets(groupId);
-        for (TopicPartitionDTO topicPartitionDTO : map.keySet()) {
-            final ConsumerGroupOffsetDTO consumerGroupOffsetDTO = new ConsumerGroupOffsetDTO(topicPartitionDTO, map.get(topicPartitionDTO));
-            offsetDTOS.add(consumerGroupOffsetDTO);
+    public ResponseEntity<List<ConsumerGroupOffsetDTO>> listConsumerGroupOffsets(
+            @PathVariable("groupId") String groupId) {
+        final Map<TopicPartitionDTO, OffsetAndMetadataDTO> map;
+        try {
+            map = this.topicService.listConsumerGroupOffsets(groupId);
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
         }
 
+        List<ConsumerGroupOffsetDTO> offsetDTOS = new ArrayList<>();
+        for (Map.Entry<TopicPartitionDTO, OffsetAndMetadataDTO> entry : map.entrySet()) {
+            offsetDTOS.add(new ConsumerGroupOffsetDTO(entry.getKey(), entry.getValue()));
+        }
         return ResponseEntity.ok(offsetDTOS);
     }
 
     @GetMapping(value = "/consumergroup/{groupId}/describe")
-    public ResponseEntity<Map<String, ConsumerGroupDescriptionDTO>> describerConsumerGroup(@PathVariable("groupId") String groupId){
-        final Map<String, ConsumerGroupDescriptionDTO> consumerGroupDescriptionDTOMap = this.topicService.describerConsumerGroups(Collections.singleton(groupId));
-        return ResponseEntity.ok(consumerGroupDescriptionDTOMap);
-
+    public ResponseEntity<Map<String, ConsumerGroupDescriptionDTO>> describerConsumerGroup(
+            @PathVariable("groupId") String groupId) {
+        try {
+            return ResponseEntity.ok(
+                    this.topicService.describerConsumerGroups(Collections.singleton(groupId)));
+        } catch (KafkaTimeoutException e) {
+            return ResponseEntity.accepted().header("queue-id", e.getKey()).build();
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }
