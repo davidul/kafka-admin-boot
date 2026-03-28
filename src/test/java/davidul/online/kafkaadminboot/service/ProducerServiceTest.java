@@ -21,7 +21,8 @@ class ProducerServiceTest {
 
     @Test
     void produce() throws KafkaTimeoutException, InternalException {
-        ConnectionService connectionService = new ConnectionService();
+        ConnectionService connectionService =
+                new ConnectionService("localhost:9092", "PLAINTEXT", "SCRAM-SHA-512", "", "", "https");
         ProducerService producerService = new ProducerService();
         final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
         TopicService topicService = new TopicService(connectionService, kafkaResultQueue);

@@ -47,7 +47,8 @@ public class TopicServiceTest {
 
     @Test
     public void connect() {
-        final ConnectionService connectionService = new ConnectionService();
+        final ConnectionService connectionService =
+                new ConnectionService("localhost:9092", "PLAINTEXT", "SCRAM-SHA-512", "", "", "https");
         final AdminClient adminClient = connectionService.adminClient();
         assertThat(adminClient).isNotNull();
     }
