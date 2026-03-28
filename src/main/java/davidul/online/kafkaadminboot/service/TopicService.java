@@ -15,7 +15,6 @@ import org.apache.kafka.common.requests.DescribeLogDirsResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 @Service
-@PropertySource("classpath:application.properties")
 public class TopicService {
 
     private final ConnectionService connectionService;
@@ -33,7 +31,7 @@ public class TopicService {
     private final KafkaResultQueue kafkaResultQueue;
 
     @Value("${admin.timeout}")
-    private String timeout;
+    private int timeout;
 
     private static final Logger logger = LoggerFactory.getLogger(TopicService.class);
 
@@ -58,7 +56,7 @@ public class TopicService {
         Set<String> listTopics = KafkaFutureHandler.handleFuture(names,
                 "listTopics",
                 kafkaResultQueue,
-                Integer.valueOf(timeout));
+                timeout);
         return new ListTopicsDTO(listTopics, false, null);
     }
 
@@ -69,7 +67,7 @@ public class TopicService {
         return KafkaFutureHandler.handleFuture(mapKafkaFuture,
                 "describeTopicsAll",
                 kafkaResultQueue,
-                Integer.valueOf(timeout));
+                timeout);
     }
 
     /**
@@ -85,9 +83,8 @@ public class TopicService {
 
         try {
             Set<String> names = topic.keySet();
-            for (String uuid : names) {
-                TopicDescription topicDescription = topic.get(uuid).get(Long.valueOf(timeout), TimeUnit.MILLISECONDS);
-                return topicDescription;
+            for (String topicName : names) {
+                return topic.get(topicName).get(timeout, TimeUnit.MILLISECONDS);
             }
             return null;
         } catch (InterruptedException | ExecutionException e) {
@@ -95,7 +92,7 @@ public class TopicService {
         } catch (TimeoutException e) {
             logger.debug("Timeout exception");
             String key = kafkaResultQueue.add(
-                    new KafkaRequest(LocalDateTime.now(), topic.get(name), "describeTopic"));
+                    new KafkaRequest<>(LocalDateTime.now(), topic.get(name), "describeTopic"));
 
             throw new KafkaTimeoutException(key);
         }
@@ -110,7 +107,7 @@ public class TopicService {
         Uuid createTopic = KafkaFutureHandler.handleFuture(uuidKafkaFuture,
                 "createTopic",
                 kafkaResultQueue,
-                Integer.valueOf(timeout));
+                timeout);
         return createTopic.toString();
     }
 
@@ -118,24 +115,27 @@ public class TopicService {
         DeleteTopicsResult deleteTopicsResult = connectionService.adminClient()
                 .deleteTopics(Collections.singletonList(name));
         KafkaFuture<Void> all = deleteTopicsResult.all();
-        Void deleteTopic = KafkaFutureHandler.handleFuture(all,
+        KafkaFutureHandler.handleFuture(all,
                 "deleteTopic",
                 kafkaResultQueue,
-                Integer.valueOf(timeout));
+                timeout);
     }
 
-    public void createPartition(String topicName, int numPartitions) {
+    public void createPartition(String topicName, int numPartitions) throws InternalException {
         Map<String, NewPartitions> map = new HashMap<>();
         final NewPartitions newPartitions = NewPartitions.increaseTo(numPartitions);
         map.put(topicName, newPartitions);
-        CreatePartitionsResult partitions = connectionService.adminClient().createPartitions(map);
-
+        try {
+            connectionService.adminClient().createPartitions(map).all().get();
+        } catch (InterruptedException | ExecutionException e) {
+            throw new InternalException(e);
+        }
     }
 
     public void deleteRecords(String topicName, int partition) throws InternalException {
         final TopicPartition topicPartition = new TopicPartition(topicName, partition);
         final HashMap<TopicPartition, RecordsToDelete> deleteHashMap = new HashMap<>();
-        deleteHashMap.put(topicPartition, RecordsToDelete.beforeOffset(Integer.MAX_VALUE));
+        deleteHashMap.put(topicPartition, RecordsToDelete.beforeOffset(Long.MAX_VALUE));
         try {
             connectionService.adminClient().deleteRecords(deleteHashMap).all().get();
         } catch (InterruptedException | ExecutionException e) {
@@ -164,9 +164,8 @@ public class TopicService {
                         consumerGroupListing.isSimpleConsumerGroup()));
             }
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            logger.error("Failed to list consumer groups", e);
         }
-
         return dtos;
     }
 
@@ -183,7 +182,7 @@ public class TopicService {
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            logger.error("Failed to list consumer group offsets for groupId={}", groupId, e);
         }
 
         return map;
@@ -202,7 +201,7 @@ public class TopicService {
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            logger.error("Failed to describe consumer groups {}", groupIds, e);
         }
 
         return consumerGroupDescriptionDTOMap;
@@ -227,7 +226,7 @@ public class TopicService {
             }
 
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            logger.error("Failed to describe log dirs for brokers {}", brokers, e);
         }
 
         return brokerMap;
@@ -246,18 +245,7 @@ public class TopicService {
     public void x(Collection<Integer> brokers) {
     }
 
-    public Object handleFuture(KafkaFuture kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
-        try {
-            return kafkaFuture.get(Integer.parseInt(timeout), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            logger.error("Exception: ", e);
-            throw new InternalException(e);
-        } catch (TimeoutException e) {
-            logger.debug("Timeout exception");
-            String key = kafkaResultQueue.add(
-                    new KafkaRequest(LocalDateTime.now(), kafkaFuture, createdBy));
-
-            throw new KafkaTimeoutException(key);
-        }
+    public <T> T handleFuture(KafkaFuture<T> kafkaFuture, String createdBy) throws InternalException, KafkaTimeoutException {
+        return KafkaFutureHandler.handleFuture(kafkaFuture, createdBy, kafkaResultQueue, timeout);
     }
 }
