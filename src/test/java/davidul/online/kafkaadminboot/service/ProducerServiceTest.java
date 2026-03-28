@@ -24,7 +24,7 @@ class ProducerServiceTest {
         ConnectionService connectionService =
                 new ConnectionService("localhost:9092", "PLAINTEXT", "SCRAM-SHA-512", "", "", "https");
         ProducerService producerService = new ProducerService();
-        final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue();
+        final KafkaResultQueue kafkaResultQueue = new KafkaResultQueue(30);
         TopicService topicService = new TopicService(connectionService, kafkaResultQueue, 5000);
         topicService.createTopic("test-topic");
         producerService.produce("test-topic", "message-1");
