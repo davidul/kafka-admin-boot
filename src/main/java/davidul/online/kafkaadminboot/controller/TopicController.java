@@ -241,7 +241,11 @@ public class TopicController {
     })
     @PostMapping(value = "/topic/{name}/partition/{count}")
     public ResponseEntity<Void> addPartition(@PathVariable("name") String name, @PathVariable("count") Integer count) {
-        this.topicService.createPartition(name, count);
+        try {
+            this.topicService.createPartition(name, count);
+        } catch (InternalException e) {
+            return ResponseEntity.internalServerError().build();
+        }
         return ResponseEntity.accepted().build();
     }
 
