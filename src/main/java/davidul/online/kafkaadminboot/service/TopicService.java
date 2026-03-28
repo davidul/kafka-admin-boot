@@ -59,19 +59,17 @@ public class TopicService {
                 "listTopics",
                 kafkaResultQueue,
                 Integer.valueOf(timeout));
-        ListTopicsDTO listTopicsDTO = new ListTopicsDTO(listTopics, false, null);
-        return listTopicsDTO;
+        return new ListTopicsDTO(listTopics, false, null);
     }
 
     public Map<String, TopicDescription> describeTopicsAll(Boolean internal) throws KafkaTimeoutException, InternalException {
         ListTopicsDTO listTopicsDTO = listTopics(internal);
         KafkaFuture<Map<String, TopicDescription>> mapKafkaFuture = connectionService.adminClient()
                 .describeTopics(listTopicsDTO.getTopicNames()).allTopicNames();
-        Map<String, TopicDescription> describeTopicsAll = KafkaFutureHandler.handleFuture(mapKafkaFuture,
+        return KafkaFutureHandler.handleFuture(mapKafkaFuture,
                 "describeTopicsAll",
                 kafkaResultQueue,
                 Integer.valueOf(timeout));
-        return describeTopicsAll;
     }
 
     /**

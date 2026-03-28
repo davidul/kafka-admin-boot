@@ -9,6 +9,11 @@ import davidul.online.kafkaadminboot.model.internal.KafkaRequest;
 import davidul.online.kafkaadminboot.model.internal.ListTopicsDTO;
 import davidul.online.kafkaadminboot.service.KafkaResultQueue;
 import davidul.online.kafkaadminboot.service.TopicService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +39,21 @@ public class TopicController {
     }
 
     /**
+     *
      * @param internal includes internal topics in response
      * @param queueId  retrieve the response from queue
-     * @return
+     * @return list of topics
      */
+    @Operation(summary = "Get list of topics")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Found the topics",
+                    content = { @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TopicDTO.class)) }),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content),
+            @ApiResponse(responseCode = "202", description = "Request accepted",
+                    content = @Content)
+    })
     @GetMapping(value = "/topics", produces = "application/json")
     public ResponseEntity<List<TopicDTO>> getTopics(@RequestParam(value = "internal", required = false) String internal,
                                                     @RequestHeader(name = "queue-id", required = false) String queueId) {
@@ -60,7 +76,7 @@ public class TopicController {
             List<TopicDTO> topics = listTopicsDTO
                     .getTopicNames()
                     .stream()
-                    .map(t -> new TopicDTO(t))
+                    .map(TopicDTO::new)
                     .collect(Collectors.toList());
             return ResponseEntity.ok(topics);
         } else {
@@ -80,6 +96,21 @@ public class TopicController {
         return ResponseEntity.notFound().build();
     }
 
+    /**
+     * @param internal includes internal topics in response
+     * @param queueId retrieve the response from queue
+     * @return list of topics with partitions
+     */
+    @Operation(summary = "Describe all topics")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Found the topics",
+                    content = { @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TopicPartitionsDTO.class)) }),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content),
+            @ApiResponse(responseCode = "202", description = "Request accepted",
+                    content = @Content)
+    })
     @GetMapping(value = "/topics/describe", produces = "application/json")
     public ResponseEntity<List<TopicPartitionsDTO>> describeTopics(@RequestParam(value = "internal", required = false)
                                                                    String internal,
@@ -100,9 +131,7 @@ public class TopicController {
                 return ResponseEntity.internalServerError().build();
             }
 
-            final Iterator<String> iterator = topicsAll.keySet().iterator();
-            while (iterator.hasNext()) {
-                final String next = iterator.next();
+            for (String next : topicsAll.keySet()) {
                 final TopicDescription topicDescription = topicsAll.get(next);
                 final TopicPartitionsDTO topicPartitionsDTO = new TopicPartitionsDTO(next, Topics.partitions(topicDescription.partitions()));
                 topicList.add(topicPartitionsDTO);
@@ -125,6 +154,16 @@ public class TopicController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Describe a specific topic")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Found the topic",
+                    content = { @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = TopicPartitionsDTO.class)) }),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content),
+            @ApiResponse(responseCode = "202", description = "Request accepted",
+                    content = @Content)
+    })
     @GetMapping(value = "/topic/describe/{name}", produces = "application/json")
     public ResponseEntity<TopicPartitionsDTO> describeTopic(@PathVariable("name") String name,
                                                             @RequestHeader(name = "queue-id", required = false) String queueId) {
@@ -157,6 +196,14 @@ public class TopicController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Create a new topic")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Topic creation accepted",
+                    content = { @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = FutureDTO.class)) }),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content)
+    })
     @PostMapping(value = "/topic/{name}")
     public ResponseEntity<FutureDTO> createTopic(@PathVariable("name") String name,
                                                  @RequestHeader(name = "queue-id", required = false) String queueId) {
@@ -187,6 +234,11 @@ public class TopicController {
         return ResponseEntity.notFound().build();
     }
 
+    @Operation(summary = "Add partitions to a topic")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Partition addition accepted",
+                    content = @Content)
+    })
     @PostMapping(value = "/topic/{name}/partition/{count}")
     public ResponseEntity<Void> addPartition(@PathVariable("name") String name, @PathVariable("count") Integer count) {
         this.topicService.createPartition(name, count);
@@ -194,6 +246,13 @@ public class TopicController {
     }
 
 
+    @Operation(summary = "Delete a topic")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Topic deletion accepted",
+                    content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content)
+    })
     @DeleteMapping(value = "/topic/{name}")
     public ResponseEntity<Void> deleteTopic(@PathVariable("name") String name) {
         try {
@@ -206,6 +265,13 @@ public class TopicController {
         return ResponseEntity.accepted().build();
     }
 
+    @Operation(summary = "Delete records from a topic partition")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Record deletion accepted",
+                    content = @Content),
+            @ApiResponse(responseCode = "500", description = "Internal server error",
+                    content = @Content)
+    })
     @PostMapping(value = "/topic/{name}/deleterecords/{partition}")
     public ResponseEntity<Void> deleteRecords(@PathVariable("name") String topicName,
                                               @PathVariable("partition") String partition) {

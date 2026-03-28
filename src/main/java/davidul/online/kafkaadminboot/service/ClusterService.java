@@ -52,7 +52,7 @@ public class ClusterService {
             final NodeDTO controller = Topics.node(node);
             return new ClusterDTO(s, nodeDTOList, controller);
         } catch (InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+            logger.error("Exception while describing cluster: ", e);
         }
 
         return null;

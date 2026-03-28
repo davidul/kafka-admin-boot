@@ -13,7 +13,7 @@ import java.util.Properties;
 @Service
 public class ConnectionService {
 
-    private Properties properties;
+    private final Properties properties;
     private AdminClient adminClient;
 
 
